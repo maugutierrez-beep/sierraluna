@@ -259,7 +259,32 @@
     color:var(--ink-soft);font-family:'Montserrat';font-size:11.5px;font-weight:600;cursor:pointer;transition:.12s}
   .mpill.active,.mpill:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
   .mov-date{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:12px}
-  /* Calculator */
+  /* Status pills en tabla compradores */
+  .spill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;letter-spacing:.03em;margin-left:5px;vertical-align:middle}
+  .spill.pagado{background:#d6f0e0;color:#1a6b3a}
+  .spill.mora{background:#fde8e4;color:#b93020}
+  .spill.pronto{background:#fff0d6;color:#8c5a00}
+  .spill.sinplan{background:#f0f0f0;color:#777}
+  .spill.aldia{background:#e4f0ff;color:#1a3352}
+  /* WhatsApp button */
+  .wa-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:800;border:none;cursor:pointer;text-decoration:none;flex-shrink:0}
+  .wa-btn:hover{background:#1da851}
+  /* Alertas widget */
+  .alertas-box{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px}
+  .alertas-box h3{font-size:13px;font-weight:700;color:var(--navy);margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em}
+  .alerta-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+  .alerta-row:last-child{border-bottom:none}
+  .alerta-name{flex:1;font-weight:600;color:var(--navy)}
+  .alerta-detail{font-size:11.5px;color:var(--ink-soft)}
+  .alerta-amount{font-weight:700;font-size:13px;white-space:nowrap}
+  .alerta-empty{color:var(--ink-soft);font-size:12.5px;padding:6px 0}
+  /* Quick filters en compradores */
+  .qf-bar{display:flex;gap:6px;flex-wrap:wrap;padding:0 0 14px}
+  .qf{padding:5px 13px;border-radius:99px;border:1.5px solid var(--line);background:var(--bg2);color:var(--ink-soft);font-family:'Montserrat';font-size:11px;font-weight:700;cursor:pointer;transition:.12s}
+  .qf.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .qf.mora-q{border-color:#e0a090;color:#b93020}
+  .qf.mora-q.active{background:#b93020;color:#fff;border-color:#b93020}
+    /* Calculator */
   .calc-box{background:linear-gradient(135deg,#eef2ff 0%,#fafbff 100%);border:1.5px solid #d0d9f0;border-radius:16px;padding:24px 28px;margin-top:20px}
   .calc-title{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
   .calc-desc{font-size:12px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5}
@@ -368,6 +393,7 @@
         <select id="f_stage" onchange="render()"><option value="">Todas las etapas</option><option value="1">Etapa 1</option><option value="2">Etapa 2</option></select>
       </div>
     </div>
+    <div class="qf-bar" id="qfbar"></div>
     <div class="tscroll">
       <table id="tbl">
         <thead><tr id="thead"></tr></thead>
@@ -448,6 +474,7 @@
     <div class="panel-h">
       <div><h2>Indicadores clave</h2><div class="desc">Lo esencial del proyecto, en cifras claras</div></div>
     </div>
+    <div id="alertas_section"></div>
     <div class="ind-grid" id="indgrid" style="display:block;padding:0"></div>
   </div>
 
@@ -573,6 +600,7 @@
       <div class="grid2">
         <div class="fg"><label>Código</label><input type="text" id="b_code" placeholder="V042"></div>
         <div class="fg"><label>Comprador</label><input type="text" id="b_name"></div>
+        <div class="fg"><label>WhatsApp / Teléfono</label><input type="text" id="b_tel" placeholder="3001234567" inputmode="numeric"></div>
       </div>
       <div class="grid3">
         <div class="fg"><label>Lote</label><input type="text" id="b_lote"></div>
@@ -930,7 +958,22 @@ function render(){
   const fs=document.getElementById("f_stage").value;
   let rows=DB.buyers.filter(b=>{
     const hay=(b.name+" "+b.code+" "+b.lote).toLowerCase().includes(q);
-    return hay&&(!ff||b.fin===ff)&&(!fp||b.prom===fp)&&(!fv||b.vend===fv)&&(!fs||String(b.stage||1)===fs);
+    if(!hay||(!(!ff)||b.fin===ff&&true)&&false) return false;
+    if(!hay) return false;
+    if(ff&&b.fin!==ff) return false;
+    if(fp&&b.prom!==fp) return false;
+    if(fv&&b.vend!==fv) return false;
+    if(fs&&String(b.stage||1)!==fs) return false;
+    // Quick filter
+    const qf=window._qFilter||'';
+    if(qf){
+      const e=evalPlan(b);
+      if(qf==='mora' && !(e.mora>0.5&&saldo(b)>0.5)) return false;
+      if(qf==='pronto' && !(e.dueSoon>0.5&&e.mora<=0.5)) return false;
+      if(qf==='pagado' && !isPaid(b)) return false;
+      if(qf==='sinplan' && (e.hasPlan||isPaid(b)||b.total<=0)) return false;
+    }
+    return true;
   });
   const val=(b,k)=>({name:b.name.toLowerCase(),lote:b.lote,fecha:b.iso||"",tam:b.tam,pm2:b.pm2,total:b.total,ab:abonado(b),sal:saldo(b),pc:pct(b),fin:b.fin,prom:b.prom,vend:b.vend,com:b.com}[k]);
   rows.sort((a,b)=>{let x=val(a,sortK),y=val(b,sortK);if(typeof x==="string"){return x.localeCompare(y)*sortDir;}return (x-y)*sortDir;});
@@ -938,11 +981,25 @@ function render(){
   const tb=document.getElementById("tbody");tb.innerHTML="";
   rows.forEach(b=>{
     const ab=abonado(b),sal=saldo(b),p=pct(b);
+    const e=evalPlan(b);
     const tr=document.createElement("tr");
-    const rowClass=ab===0&&b.total>0?'row-warn':isPaid(b)?'row-ok':evalPlan(b).mora>0.5?'row-mora':'';
+    const rowClass=ab===0&&b.total>0?'row-warn':isPaid(b)?'row-ok':e.mora>0.5?'row-mora':'';
     tr.className=rowClass;
+    // Status pill
+    let spill='';
+    if(b.total>0){
+      if(isPaid(b)) spill='<span class="spill pagado">Pagado</span>';
+      else if(e.mora>0.5) spill='<span class="spill mora">En mora</span>';
+      else if(e.dueSoon>0.5) spill='<span class="spill pronto">Por vencer</span>';
+      else if(!e.hasPlan) spill='<span class="spill sinplan">Sin plan</span>';
+      else spill='<span class="spill aldia">Al día</span>';
+    }
+    // WhatsApp button
+    const tel=(b.tel||"").replace(/\D/g,"");
+    const waMsg=encodeURIComponent(`Hola ${b.name.split(" ")[0]}, te escribimos de *Sierraluna Club Residencial* 🏡\nTu saldo pendiente es *${money(sal)}*${e.mora>0.5?` (mora: ${money(e.mora)})`:""}. \n¿Podemos coordinar tu próximo abono?`);
+    const waBtn=tel?`<a href="https://wa.me/57${tel}?text=${waMsg}" target="_blank" class="wa-btn" title="WhatsApp ${b.tel}">W</a>`:'<span style="width:28px;display:inline-block"></span>';
     tr.innerHTML=`
-      <td class="cm tbl-first">${esc(b.name)}<small>${b.code}${(b.stage||1)===2?' · Etapa 2':''}</small></td>
+      <td class="cm tbl-first">${esc(b.name)}${spill}<small>${b.code}${(b.stage||1)===2?' · Etapa 2':''}</small></td>
       <td>${esc(b.lote)||"—"}</td>
       <td>${b.fecha||"—"}</td>
       <td class="num">${b.tam?NUM.format(b.tam):"—"}</td>
@@ -954,6 +1011,7 @@ function render(){
       <td>${b.prom?`<span class="pill ${promClass(b.prom)}">${esc(b.prom)}</span>`:"—"}</td>
       <td>${esc(b.vend)||"—"}</td>
       <td class="tbl-last"><div class="rowbtns">
+        ${waBtn}
         <button class="ib" title="Registrar abono" onclick="openPayment('${b.id}')">＄</button>
         <button class="ie" title="Editar" onclick="openBuyer('${b.id}')">✎</button>
         <button class="btn-pdf" title="Estado de cuenta PDF" onclick="generatePDF('${b.id}')">↓ PDF</button>
@@ -962,7 +1020,7 @@ function render(){
   });
   document.getElementById("t_count").textContent=`${rows.length} de ${DB.buyers.length} compradores`;
 
-  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();fillFilters();drawCharts();
+  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();fillFilters();drawCharts();renderQFBar();renderAlertas();
 }
 
 function onlinePaid(b){return (b.payments||[]).filter(p=>p.chan!=="Offline").reduce((a,p)=>a+(+p.amount||0),0);}
@@ -1113,6 +1171,58 @@ function updateCalc(){
         <div class="calc-sub">lo vendido + lo proyectado por vender</div>
       </div>
     </div>`;
+}
+
+
+/* ---- Quick filter bar ---- */
+window._qFilter='';
+function setQFilter(f){window._qFilter=f;render();}
+function renderQFBar(){
+  const qfbar=document.getElementById('qfbar');if(!qfbar)return;
+  const bs=DB.buyers;
+  const nMora=bs.filter(b=>evalPlan(b).mora>0.5&&saldo(b)>0.5).length;
+  const nPronto=bs.filter(b=>{const e=evalPlan(b);return e.dueSoon>0.5&&e.mora<=0.5;}).length;
+  const nPagado=bs.filter(b=>isPaid(b)).length;
+  const nSinPlan=bs.filter(b=>b.total>0&&!evalPlan(b).hasPlan&&!isPaid(b)).length;
+  const cur=window._qFilter||'';
+  const btn=(k,lbl,cnt,extra='')=>`<button class="qf ${extra} ${cur===k?'active':''}" onclick="setQFilter('${k}')">${lbl}${cnt?' <span style="opacity:.7">('+cnt+')</span>':''}</button>`;
+  qfbar.innerHTML=btn('','Todos',bs.length)+btn('mora',`En mora`,nMora,'mora-q')+btn('pronto','Por vencer',nPronto)+btn('pagado','Pagados',nPagado)+btn('sinplan','Sin plan',nSinPlan);
+}
+
+/* ---- Alertas widget ---- */
+function renderAlertas(){
+  const el=document.getElementById('alertas_section');if(!el)return;
+  const today=new Date().toISOString().slice(0,10);
+  const in15=new Date(Date.now()+15*864e5).toISOString().slice(0,10);
+  // En mora
+  const mora=DB.buyers.filter(b=>evalPlan(b).mora>0.5&&saldo(b)>0.5)
+    .map(b=>({b,e:evalPlan(b)})).sort((a,b)=>b.e.mora-a.e.mora);
+  // Vencen en 15 días
+  const pronto=DB.buyers.filter(b=>{const e=evalPlan(b);return e.dueSoon>0.5&&e.mora<=0.5;})
+    .map(b=>({b,e:evalPlan(b)})).sort((a,b)=>a.e.nextDue?.date?.localeCompare(b.e.nextDue?.date||'')||0);
+  if(!mora.length&&!pronto.length){el.innerHTML='';return;}
+  const tel=(b)=>{const t=(b.tel||'').replace(/\D/g,'');return t?`<a href="https://wa.me/57${t}" target="_blank" class="wa-btn" style="font-size:11px">W</a>`:'';}
+  const moraRows=mora.slice(0,5).map(({b,e})=>`
+    <div class="alerta-row">
+      <span class="alerta-name">${esc(b.name)}<small style="margin-left:5px;font-weight:400;color:var(--ink-soft)">${b.code}</small></span>
+      <span class="alerta-detail">mora</span>
+      <span class="alerta-amount" style="color:var(--red)">${money(e.mora)}</span>
+      ${tel(b)}
+      <button class="ib" style="padding:4px 8px;font-size:11px" onclick="openPayment('${b.id}')">Abonar</button>
+    </div>`).join('');
+  const prontRows=pronto.slice(0,4).map(({b,e})=>`
+    <div class="alerta-row">
+      <span class="alerta-name">${esc(b.name)}<small style="margin-left:5px;font-weight:400;color:var(--ink-soft)">${b.code}</small></span>
+      <span class="alerta-detail">${e.nextDue?.label||'próximo vence'}</span>
+      <span class="alerta-amount" style="color:var(--coral)">${money(e.dueSoon)}</span>
+      ${tel(b)}
+      <button class="ib" style="padding:4px 8px;font-size:11px" onclick="openPayment('${b.id}')">Abonar</button>
+    </div>`).join('');
+  el.innerHTML=`<div class="alertas-box">
+    <h3>🔔 Alertas de cobranza</h3>
+    ${mora.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#b93020;letter-spacing:.05em;margin-bottom:6px">En mora (${mora.length})</div>${moraRows}`:''}
+    ${pronto.length?`<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--coral);letter-spacing:.05em;margin:${mora.length?10:0}px 0 6px">Vencen en 15 días (${pronto.length})</div>${prontRows}`:''}
+  </div>`;
 }
 
 const MANZ_ORDER=["A","H","I","J","K","L","X","Y"];
@@ -1532,10 +1642,22 @@ function drawCharts(){
   charts.cartera=new Chart(document.getElementById("ch_cartera"),{type:"doughnut",
     data:{labels:["Recibido","Por cobrar"],datasets:[{data:[recibido,sal],backgroundColor:["#1A3352","#EF7746"],borderColor:"#ffffff",borderWidth:3}]},
     options:{cutout:"62%",plugins:{legend:{position:"bottom",labels:{boxWidth:12,padding:14,font:{size:11.5}}},tooltip:{callbacks:{label:c=>c.label+": "+money(c.parsed)}}}}});
+  // Monthly chart: last 14 months of actual payments
+  const moData=(()=>{
+    const byMo={};
+    DB.buyers.forEach(b=>(b.payments||[]).forEach(p=>{
+      const mo=(p.date||'').slice(0,7);if(mo)byMo[mo]=(byMo[mo]||0)+(+p.amount||0);
+    }));
+    const mos=[];const now=new Date();
+    for(let i=13;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);mos.push(d.toISOString().slice(0,7));}
+    const labels=mos.map(m=>{const[y,mo]=m.split('-');return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+mo-1]+'-'+y.slice(2);});
+    const data=mos.map(m=>byMo[m]||0);
+    return {labels,data};
+  })();
   charts.mes=new Chart(document.getElementById("ch_mes"),{type:"bar",
-    data:{labels:mkeys,datasets:[{data:mkeys.map(k=>mm[k]),backgroundColor:"#1A3352",borderRadius:5}]},
-    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.y)}}},scales:{x:{grid:{display:false}},y:{grid:{color:gridc},ticks:{callback:v=>moneyShort(v)}}}}});
-  charts.vend=new Chart(document.getElementById("ch_vend"),{type:"bar",
+    data:{labels:moData.labels,datasets:[{label:"Recaudo",data:moData.data,backgroundColor:moData.data.map((_,i)=>i===13?'rgba(183,107,55,.9)':'rgba(39,74,114,.75)'),borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'  '+money(ctx.raw)}}},scales:{y:{ticks:{callback:v=>v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(0)+'M':''+v,font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},x:{ticks:{font:{size:9}},grid:{display:false}}}}});
+    charts.vend=new Chart(document.getElementById("ch_vend"),{type:"bar",
     data:{labels:sk.map(s=>s[0]),datasets:[{data:sk.map(s=>s[1]),backgroundColor:"#274a72",borderRadius:5}]},
     options:{indexAxis:"y",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.x)}}},scales:{x:{grid:{color:gridc},ticks:{callback:v=>moneyShort(v)}},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}});
 }
@@ -1729,12 +1851,13 @@ function openBuyer(id){
   if(id){
     const b=DB.buyers.find(x=>x.id===id);t.textContent="Editar comprador";initWrap.style.display="none";
     b_code.value=b.code;b_name.value=b.name;b_lote.value=b.lote;b_fecha.value=b.iso||"";b_tam.value=b.tam||"";
+    document.getElementById('b_tel').value=b.tel||"";
     b_total.value=b.total?NUM.format(b.total):"";b_pm2.value=b.pm2?NUM.format(b.pm2):"";b_com.value=b.com?NUM.format(b.com):"";
     b_fin.value=b.fin;b_prom.value=b.prom;b_vend.value=b.vend;document.getElementById("b_stage").value=b.stage||1;
     document.getElementById("b_delbtn").style.display="inline-block";
   } else {
     t.textContent="Nuevo comprador";initWrap.style.display="block";
-    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init"].forEach(k=>document.getElementById(k).value="");
+    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init","b_tel"].forEach(k=>document.getElementById(k).value="");
     document.getElementById("b_stage").value="1";
     document.getElementById("b_delbtn").style.display="none";
     b_fecha.value=today();
@@ -1750,7 +1873,7 @@ function saveBuyer(){
   if(!name){alert("El nombre del comprador es obligatorio.");return;}
   const iso=b_fecha.value;
   let fecha="";if(iso){const d=new Date(iso+"T00:00");const mn=Object.keys(MONTHS)[d.getMonth()];fecha=`${mn}-${String(d.getFullYear()).slice(2)}`;}
-  const data={code,name,lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
+  const data={code,name,tel:(document.getElementById('b_tel').value||'').replace(/\D/g,''),lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
     pm2:parseNum(b_pm2.value),com:parseNum(b_com.value),fin:b_fin.value.trim(),prom:b_prom.value.trim(),vend:b_vend.value.trim(),stage:parseInt(document.getElementById("b_stage").value)||1};
   if(editId){Object.assign(DB.buyers.find(x=>x.id===editId),data);}
   else{
