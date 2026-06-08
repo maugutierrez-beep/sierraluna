@@ -301,7 +301,8 @@
       <button class="btn-gold" onclick="openPayment()">+ Registrar abono</button>
       <button class="btn-ghost" onclick="openBuyer()">+ Nuevo comprador</button>
       <button class="btn-ghost" onclick="exportCSV()">Exportar CSV</button>
-      <button class="btn-ghost" onclick="resetData()">Restablecer</button>
+      <button class="btn-ghost" onclick="exportJSON()">Exportar JSON</button>
+      <button class="btn-ghost" onclick="importJSON()">Importar JSON</button>
     </div>
   </header>
 
@@ -1669,7 +1670,31 @@ function saveOffline(){const n=o_name.value.trim();const a=parseNum(o_amount.val
 /* ---------- Misc ---------- */
 function closeAll(){document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("on"));}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
-async function resetData(){if(confirm("Esto restablece todos los datos a la planilla original y borra los abonos que hayas registrado. ¿Continuar?")){seedAll();await save();render();}}
+async function resetData(){if(confirm("Esto restablece todos los datos a la planilla original y borra los abonos que hayas registrado. ¿Continuar?")){seedAll();save();render();}}
+
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='Sierraluna_DB_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function importJSON(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
+  inp.onchange=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const parsed=JSON.parse(ev.target.result);
+        if(!parsed.buyers||!Array.isArray(parsed.buyers)){alert('Archivo JSON inválido.');return;}
+        if(!confirm('¿Reemplazar todos los datos actuales con los del archivo importado?'))return;
+        DB=parsed;save();render();alert('Datos importados correctamente.');
+      }catch(err){alert('Error al leer el archivo: '+err.message);}
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
+}
 function exportCSV(){
   const head=["Codigo","Comprador","Lote","Fecha","Tamano_m2","Precio_m2","Ventas_Totales","Abonado","Saldo","Pct_Abono","Financiacion","Promesa","Vendedor","Comision"];
   const lines=[head.join(";")];
