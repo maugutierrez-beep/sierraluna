@@ -1910,61 +1910,119 @@ function renderGastos(){
   if(!body||!cards)return;
   const gastos=DB.gastos||[];
 
-  // ── Gastos table ──────────────────────────────────────────
-  if(!gastos.length){
-    body.innerHTML=`<div style="color:var(--ink-soft);font-size:13px;padding:12px 0">No hay gastos registrados. Haz clic en "+ Agregar gasto" para comenzar.</div>`;
-  } else {
-    body.innerHTML=`<div class="tscroll"><table class="invtbl">
-      <thead><tr><th class="tbl-first">Categoría</th><th class="r">Monto</th><th class="tbl-last"></th></tr></thead>
-      <tbody>${gastos.map((g,i)=>`
-        <tr class="lotrow">
-          <td class="tbl-first">
-            <input value="${esc(g.cat)}" style="width:100%;border:none;background:transparent;font-family:'Montserrat';font-size:13px;font-weight:600;color:var(--navy);padding:0"
-              onchange="DB.gastos[${i}].cat=this.value;save()" onblur="DB.gastos[${i}].cat=this.value;save()">
-          </td>
-          <td class="r">
-            <input value="${NUM.format(g.amount)}" inputmode="numeric" style="width:140px;text-align:right;border:none;background:transparent;font-family:'Montserrat';font-size:13px;font-weight:700;color:var(--navy);padding:0"
-              onchange="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()"
-              onblur="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()">
-          </td>
-          <td class="tbl-last"><button class="btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteGasto(${i})">×</button></td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-  }
-
-  // ── Utility calculation ───────────────────────────────────
+  // ── Base numbers ─────────────────────────────────────────
   const totalGastos=gastos.reduce((s,g)=>s+(+g.amount||0),0);
   const r=recaudo();
-
-  // Valor total vendido (precio de venta comprometido — la base correcta para utilidad)
   const vendidoTotal=DB.buyers.filter(b=>b.total>0).reduce((s,b)=>s+b.total,0);
 
-  // Utilidad = lo que ya está vendido (comprometido) − gastos
-  const utilidad=vendidoTotal-totalGastos;
-  const margen=vendidoTotal>0?(utilidad/vendidoTotal*100):0;
+  // Available lots m² for projection
+  const sold=soldMap();
+  const availE1=[...new Set((DB.availLots||[]).map(c=>c.toUpperCase()))].filter(c=>!sold[c]);
+  const areaDisp=availE1.reduce((a,c)=>a+lotArea(c),0);
+  const soldE1=Object.keys(sold).filter(c=>(sold[c].stage||1)===1);
+  const areaVendida=soldE1.reduce((a,c)=>a+lotArea(c),0);
+  const precioPromedio=areaVendida>0?vendidoTotal/areaVendida:0;
 
-  // Recaudo: solo informativo (cuánto ha entrado a la caja)
-  const ingresosFecha=r.total;
-  const utilFechaInfo=ingresosFecha-totalGastos; // flujo de caja informativo
+  // Project price: use saved value or default to average
+  const pm2Proj=window._gastospm2||precioPromedio;
+  const ingresosPorVender=areaDisp*pm2Proj;
+  const ingresosTotalesE1=vendidoTotal+ingresosPorVender;
 
-  const ccard=(title,val,sub,color,big=false)=>`
-    <div style="background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px 20px;${big?'border-color:var(--navy);background:var(--navy)':''}">
-      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${big?'rgba(255,255,255,.65)':'var(--ink-soft)'};margin-bottom:8px">${title}</div>
-      <div style="font-size:${big?'26':'22'}px;font-weight:800;color:${big?'#fff':color};font-family:'Montserrat';line-height:1.1">${val}</div>
-      <div style="font-size:11.5px;margin-top:5px;color:${big?'rgba(255,255,255,.6)':'var(--ink-soft)'}">${sub}</div>
+  // Projected expenses: proportional to project completion
+  const areaTotal=areaVendida+areaDisp;
+  const pctAvance=areaTotal>0?areaVendida/areaTotal:1;
+  const gastosTotalesEstimados=pctAvance>0?totalGastos/pctAvance:totalGastos;
+  const gastosPorEjecutar=gastosTotalesEstimados-totalGastos;
+
+  // Use saved override if exists
+  const gastosTotalesProy=window._gastosTotal||gastosTotalesEstimados;
+
+  // Utilities
+  const utilActual=vendidoTotal-totalGastos;
+  const margenActual=vendidoTotal>0?(utilActual/vendidoTotal*100):0;
+  const utilProyectada=ingresosTotalesE1-gastosTotalesProy;
+  const margenProy=ingresosTotalesE1>0?(utilProyectada/ingresosTotalesE1*100):0;
+
+  // ── Gastos table ─────────────────────────────────────────
+  body.innerHTML=`
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;flex-wrap:wrap" class="gastos-layout">
+    <!-- Left: expense table -->
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px">Gastos registrados a la fecha</div>
+      ${gastos.length?`<div class="tscroll"><table class="invtbl">
+        <thead><tr><th class="tbl-first">Categoría</th><th class="r">Monto</th><th class="tbl-last"></th></tr></thead>
+        <tbody>${gastos.map((g,i)=>`<tr class="lotrow">
+          <td class="tbl-first"><input value="${esc(g.cat)}" style="width:100%;border:none;background:transparent;font-family:'Montserrat';font-size:12.5px;font-weight:600;color:var(--navy);padding:0"
+            onchange="DB.gastos[${i}].cat=this.value;save()" onblur="DB.gastos[${i}].cat=this.value;save()"></td>
+          <td class="r"><input value="${NUM.format(g.amount)}" inputmode="numeric" style="width:130px;text-align:right;border:none;background:transparent;font-family:'Montserrat';font-size:12.5px;font-weight:700;color:var(--navy);padding:0"
+            onchange="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()"
+            onblur="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()"></td>
+          <td class="tbl-last"><button class="btn-red" style="padding:4px 9px;font-size:11px" onclick="deleteGasto(${i})">×</button></td>
+        </tr>`).join('')}
+        <tr style="background:#f7f8fc">
+          <td class="tbl-first" style="font-weight:700;font-size:12.5px;color:var(--navy)">Total gastos a la fecha</td>
+          <td class="r" style="font-weight:800;font-size:14px;color:var(--coral)">${money(totalGastos)}</td>
+          <td class="tbl-last"></td>
+        </tr></tbody>
+      </table></div>`:'<div style="color:var(--ink-soft);font-size:12.5px;padding:8px 0">Sin gastos registrados aún.</div>'}
+      <button class="btn-line" style="margin-top:10px;font-size:12px" onclick="addGasto()">+ Agregar categoría</button>
+    </div>
+
+    <!-- Right: projection inputs -->
+    <div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px">Parámetros de proyección</div>
+      <div style="background:#f5f7ff;border:1.5px solid #d0d9f0;border-radius:12px;padding:18px">
+
+        <div style="margin-bottom:16px">
+          <div style="font-size:11.5px;font-weight:600;color:var(--navy);margin-bottom:6px">Precio/m² para los lotes que faltan</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:var(--navy);font-weight:700">$</span>
+            <input id="gasto_pm2" type="text" inputmode="numeric" value="${NUM.format(Math.round(pm2Proj))}"
+              style="width:140px;padding:8px 10px;border:2px solid var(--navy);border-radius:9px;font-family:'Montserrat';font-size:15px;font-weight:700;color:var(--navy);text-align:right;background:#fff"
+              oninput="window._gastospm2=parseNum(this.value);renderGastos()">
+            <span style="font-size:12px;color:var(--ink-soft)">/m²</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">Promedio actual: ${money(Math.round(precioPromedio))}/m²</div>
+        </div>
+
+        <div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--navy);margin-bottom:4px">Gastos totales estimados del proyecto</div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px">
+            Estimado automático (basado en avance ${(pctAvance*100).toFixed(0)}%): <b>${money(Math.round(gastosTotalesEstimados))}</b>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="color:var(--navy);font-weight:700">$</span>
+            <input id="gasto_total_proy" type="text" inputmode="numeric" value="${NUM.format(Math.round(gastosTotalesProy))}"
+              style="width:160px;padding:8px 10px;border:2px solid var(--coral);border-radius:9px;font-family:'Montserrat';font-size:15px;font-weight:700;color:var(--coral);text-align:right;background:#fff"
+              oninput="window._gastosTotal=parseNum(this.value);renderGastos()">
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:4px">Edita si tienes una estimación propia · por ejecutar: <b>${money(Math.round(gastosPorEjecutar))}</b></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Result cards ─────────────────────────────────────────
+  const ccard=(title,val,sub,col,big=false)=>`
+    <div style="background:${big?'var(--navy)':'#fff'};border:1.5px solid ${big?'var(--navy)':'var(--line)'};border-radius:14px;padding:18px 20px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${big?'rgba(255,255,255,.6)':'var(--ink-soft)'};margin-bottom:7px">${title}</div>
+      <div style="font-size:${big?'28':'20'}px;font-weight:800;color:${big?'#fff':col};font-family:'Montserrat';line-height:1.1">${val}</div>
+      <div style="font-size:11px;margin-top:5px;color:${big?'rgba(255,255,255,.55)':'var(--ink-soft)'}">${sub}</div>
     </div>`;
 
   cards.innerHTML=`
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
-      ${ccard('Total gastos registrados', money(totalGastos), `${gastos.length} categoría${gastos.length!==1?'s':''}`, 'var(--coral)')}
-      ${ccard('Valor total vendido', money(vendidoTotal), 'precio de venta comprometido (todas las ventas)', 'var(--navy)')}
-      ${ccard('Utilidad del negocio', money(utilidad), `margen ${margen.toFixed(1)}% sobre el valor vendido`, utilidad>=0?'#1a6b3a':'#b93020', true)}
-      ${ccard('Recaudo a la fecha', money(ingresosFecha), `${(ingresosFecha/vendidoTotal*100).toFixed(1)}% del valor vendido cobrado`, 'var(--navy)')}
-      ${ccard('Saldo por cobrar', money(vendidoTotal-ingresosFecha), 'comprometido pero aún no cobrado', '#8c5a00')}
-    </div>
-    <div style="margin-top:10px;font-size:11px;color:var(--ink-soft);padding:0 2px">
-      * Utilidad = valor total vendido − gastos totales. &nbsp; El recaudo es solo flujo de caja (cuánto ha entrado a la cuenta).
+    <div style="border-top:1.5px solid var(--line);padding-top:20px;margin-top:4px">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:14px">Proyección Etapa 1 completa</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">
+        ${ccard('Ya vendido',money(vendidoTotal),`${soldE1.length} lotes · ${(pctAvance*100).toFixed(0)}% del área`,'var(--navy)')}
+        ${ccard('Por vender ('+availE1.length+' lotes)',money(ingresosPorVender),`${NUM.format(Math.round(areaDisp))} m² × ${money(Math.round(pm2Proj))}/m²`,'#274a72')}
+        ${ccard('Ingresos totales E1',money(ingresosTotalesE1),'vendido + proyectado por vender','var(--navy)')}
+        ${ccard('Gastos totales estimados',money(gastosTotalesProy),`a la fecha ${money(totalGastos)} · por ejecutar ${money(Math.round(Math.max(0,gastosPorEjecutar)))}`,'var(--coral)')}
+        ${ccard(`Utilidad proyectada E1 · ${margenProy.toFixed(1)}%`,money(utilProyectada),'ingresos totales E1 − gastos estimados totales',utilProyectada>=0?'#1a6b3a':'#b93020',true)}
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--ink-soft)">
+        Utilidad actual sobre lo vendido: <b style="color:${utilActual>=0?'#1a6b3a':'#b93020'}">${money(utilActual)}</b> · margen ${margenActual.toFixed(1)}%
+      </div>
     </div>`;
 }
 
@@ -1977,6 +2035,7 @@ function deleteGasto(i){
   if(!confirm(`¿Eliminar "${DB.gastos[i]?.cat}"?`))return;
   DB.gastos.splice(i,1);save();renderGastos();
 }
+
 
 
 function openOffline(){o_name.value="";o_amount.value="";document.getElementById("ov_off").classList.add("on");}
