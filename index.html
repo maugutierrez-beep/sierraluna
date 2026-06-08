@@ -531,8 +531,8 @@
       <div class="fg">
         <label>Comprobante <span style="font-weight:400;color:var(--ink-soft)">(opcional · imagen o PDF)</span></label>
         <div class="file-input-wrap">
-          <input type="file" id="pay_voucher" accept="image/*,application/pdf" onchange="onVoucherSelected(this)">
-          <button type="button" class="btn-line" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="document.getElementById('pay_voucher').click()">Adjuntar archivo</button>
+          <input type="file" id="pay_voucher" accept="image/*,application/pdf" onchange="onVoucherSelected(this)" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
+          <button type="button" class="btn-line" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="const fi=document.getElementById('pay_voucher');fi.style.pointerEvents='auto';fi.click();fi.style.pointerEvents='none'">Adjuntar archivo</button>
         </div>
         <div id="pay_voucher_info" style="font-size:11px;color:var(--ink-soft);margin-top:4px"></div>
         <img id="pay_voucher_preview" style="display:none;max-height:80px;margin-top:6px;border-radius:6px;border:1px solid var(--line);cursor:pointer" onclick="document.getElementById('pay_voucher').click()">
@@ -1527,7 +1527,16 @@ async function viewVoucher(pid,fromEvent){
 
 // Attach voucher to existing payment (from Movimientos)
 let _attachPid=null;
-function attachVoucherBtn(pid){_attachPid=pid;const inp=document.getElementById('global_file_inp');inp.value='';inp.click();}
+function attachVoucherBtn(pid){
+  _attachPid=pid;
+  // Create fresh input on each click — required for browser security model
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='image/*,application/pdf';
+  inp.style.cssText='position:fixed;top:-999px;left:-999px;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange=async()=>{ await _onGlobalFile(inp); document.body.removeChild(inp); };
+  inp.click();
+}
 async function _onGlobalFile(inp){
   const file=inp.files[0];if(!file||!_attachPid)return;
   const pid=_attachPid;_attachPid=null;
