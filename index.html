@@ -1936,15 +1936,17 @@ function renderGastos(){
   // ── Utility calculation ───────────────────────────────────
   const totalGastos=gastos.reduce((s,g)=>s+(+g.amount||0),0);
   const r=recaudo();
-  const ingresosFecha=r.total;  // lo realmente cobrado
 
-  // Valor total vendido (fixed)
+  // Valor total vendido (precio de venta comprometido — la base correcta para utilidad)
   const vendidoTotal=DB.buyers.filter(b=>b.total>0).reduce((s,b)=>s+b.total,0);
 
-  const utilFecha=ingresosFecha-totalGastos;
-  const utilProyectada=vendidoTotal-totalGastos;
-  const margenFecha=ingresosFecha>0?(utilFecha/ingresosFecha*100):0;
-  const margenProy=vendidoTotal>0?(utilProyectada/vendidoTotal*100):0;
+  // Utilidad = lo que ya está vendido (comprometido) − gastos
+  const utilidad=vendidoTotal-totalGastos;
+  const margen=vendidoTotal>0?(utilidad/vendidoTotal*100):0;
+
+  // Recaudo: solo informativo (cuánto ha entrado a la caja)
+  const ingresosFecha=r.total;
+  const utilFechaInfo=ingresosFecha-totalGastos; // flujo de caja informativo
 
   const ccard=(title,val,sub,color,big=false)=>`
     <div style="background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px 20px;${big?'border-color:var(--navy);background:var(--navy)':''}">
@@ -1956,13 +1958,13 @@ function renderGastos(){
   cards.innerHTML=`
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
       ${ccard('Total gastos registrados', money(totalGastos), `${gastos.length} categoría${gastos.length!==1?'s':''}`, 'var(--coral)')}
-      ${ccard('Ingresos a la fecha', money(ingresosFecha), 'recaudo real consolidado', 'var(--navy)')}
-      ${ccard('Utilidad a la fecha', money(utilFecha), `margen ${margenFecha.toFixed(1)}% sobre lo cobrado`, utilFecha>=0?'#1a6b3a':'#b93020')}
-      ${ccard('Valor total vendido', money(vendidoTotal), 'precio de venta de todos los lotes', 'var(--navy)')}
-      ${ccard('Utilidad proyectada', money(utilProyectada), `margen ${margenProy.toFixed(1)}% sobre ventas totales`, utilProyectada>=0?'#1a6b3a':'#b93020', true)}
+      ${ccard('Valor total vendido', money(vendidoTotal), 'precio de venta comprometido (todas las ventas)', 'var(--navy)')}
+      ${ccard('Utilidad del negocio', money(utilidad), `margen ${margen.toFixed(1)}% sobre el valor vendido`, utilidad>=0?'#1a6b3a':'#b93020', true)}
+      ${ccard('Recaudo a la fecha', money(ingresosFecha), `${(ingresosFecha/vendidoTotal*100).toFixed(1)}% del valor vendido cobrado`, 'var(--navy)')}
+      ${ccard('Saldo por cobrar', money(vendidoTotal-ingresosFecha), 'comprometido pero aún no cobrado', '#8c5a00')}
     </div>
     <div style="margin-top:10px;font-size:11px;color:var(--ink-soft);padding:0 2px">
-      * Utilidad a la fecha = recaudo cobrado − gastos. &nbsp; Utilidad proyectada = precio total de ventas cerradas − gastos.
+      * Utilidad = valor total vendido − gastos totales. &nbsp; El recaudo es solo flujo de caja (cuánto ha entrado a la cuenta).
     </div>`;
 }
 
