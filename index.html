@@ -449,6 +449,18 @@
     </div>
   </div>
 
+  <!-- Gastos y Utilidad -->
+  <div class="panel" data-section="finanzas">
+    <div class="panel-h">
+      <div><h2>Gastos y utilidad del negocio</h2>
+        <div class="desc">Ingresa los gastos por categoría. La utilidad se calcula automáticamente contra el recaudo real y el valor total vendido.</div>
+      </div>
+      <button class="btn-gold" onclick="addGasto()">+ Agregar gasto</button>
+    </div>
+    <div id="gastos_body"></div>
+    <div id="utilidad_cards" style="margin-top:20px"></div>
+  </div>
+
   <!-- Lot inventory -->
   <div class="panel" data-section="inventario">
     <div class="panel-h">
@@ -912,6 +924,12 @@ function migrate(){
     DB.offline=[];
     DB._offlineIndividual=true; changed=true;
   }
+  // Init gastos from existing "Gastado (acumulado)" if first time
+  if(!DB.gastos){
+    const existing=(DB.liq.find(x=>x.k==="Gastado (acumulado)")||{v:0}).v;
+    DB.gastos=existing>0?[{cat:"Gastos acumulados",amount:existing}]:[];
+    changed=true;
+  }
   if(changed) save();
 }
 function seedAll(){ DB={buyers:seedBuyers(),offline:JSON.parse(JSON.stringify(SEED_OFFLINE)),liq:JSON.parse(JSON.stringify(SEED_LIQ)),availLots:JSON.parse(JSON.stringify(SEED_AVAIL)),availLots2:JSON.parse(JSON.stringify(SEED_AVAIL2))}; }
@@ -1020,7 +1038,7 @@ function render(){
   });
   document.getElementById("t_count").textContent=`${rows.length} de ${DB.buyers.length} compradores`;
 
-  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();fillFilters();drawCharts();renderQFBar();renderAlertas();
+  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();renderGastos();fillFilters();drawCharts();renderQFBar();renderAlertas();
 }
 
 function onlinePaid(b){return (b.payments||[]).filter(p=>p.chan!=="Offline").reduce((a,p)=>a+(+p.amount||0),0);}
@@ -1885,7 +1903,80 @@ function saveBuyer(){
 }
 function delBuyer(id){const b=DB.buyers.find(x=>x.id===id);if(confirm(`¿Eliminar a ${b.name}? Esta acción no se puede deshacer.`)){DB.buyers=DB.buyers.filter(x=>x.id!==id);save();render();}}
 
-/* ---------- Offline modal ---------- */
+/* ---------- Gastos y Utilidad ---------- */
+function renderGastos(){
+  const body=document.getElementById('gastos_body');
+  const cards=document.getElementById('utilidad_cards');
+  if(!body||!cards)return;
+  const gastos=DB.gastos||[];
+
+  // ── Gastos table ──────────────────────────────────────────
+  if(!gastos.length){
+    body.innerHTML=`<div style="color:var(--ink-soft);font-size:13px;padding:12px 0">No hay gastos registrados. Haz clic en "+ Agregar gasto" para comenzar.</div>`;
+  } else {
+    body.innerHTML=`<div class="tscroll"><table class="invtbl">
+      <thead><tr><th class="tbl-first">Categoría</th><th class="r">Monto</th><th class="tbl-last"></th></tr></thead>
+      <tbody>${gastos.map((g,i)=>`
+        <tr class="lotrow">
+          <td class="tbl-first">
+            <input value="${esc(g.cat)}" style="width:100%;border:none;background:transparent;font-family:'Montserrat';font-size:13px;font-weight:600;color:var(--navy);padding:0"
+              onchange="DB.gastos[${i}].cat=this.value;save()" onblur="DB.gastos[${i}].cat=this.value;save()">
+          </td>
+          <td class="r">
+            <input value="${NUM.format(g.amount)}" inputmode="numeric" style="width:140px;text-align:right;border:none;background:transparent;font-family:'Montserrat';font-size:13px;font-weight:700;color:var(--navy);padding:0"
+              onchange="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()"
+              onblur="DB.gastos[${i}].amount=parseNum(this.value);this.value=NUM.format(DB.gastos[${i}].amount);save();renderGastos()">
+          </td>
+          <td class="tbl-last"><button class="btn-red" style="padding:5px 10px;font-size:11px" onclick="deleteGasto(${i})">×</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  }
+
+  // ── Utility calculation ───────────────────────────────────
+  const totalGastos=gastos.reduce((s,g)=>s+(+g.amount||0),0);
+  const r=recaudo();
+  const ingresosFecha=r.total;  // lo realmente cobrado
+
+  // Valor total vendido (fixed)
+  const vendidoTotal=DB.buyers.filter(b=>b.total>0).reduce((s,b)=>s+b.total,0);
+
+  const utilFecha=ingresosFecha-totalGastos;
+  const utilProyectada=vendidoTotal-totalGastos;
+  const margenFecha=ingresosFecha>0?(utilFecha/ingresosFecha*100):0;
+  const margenProy=vendidoTotal>0?(utilProyectada/vendidoTotal*100):0;
+
+  const ccard=(title,val,sub,color,big=false)=>`
+    <div style="background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px 20px;${big?'border-color:var(--navy);background:var(--navy)':''}">
+      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${big?'rgba(255,255,255,.65)':'var(--ink-soft)'};margin-bottom:8px">${title}</div>
+      <div style="font-size:${big?'26':'22'}px;font-weight:800;color:${big?'#fff':color};font-family:'Montserrat';line-height:1.1">${val}</div>
+      <div style="font-size:11.5px;margin-top:5px;color:${big?'rgba(255,255,255,.6)':'var(--ink-soft)'}">${sub}</div>
+    </div>`;
+
+  cards.innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+      ${ccard('Total gastos registrados', money(totalGastos), `${gastos.length} categoría${gastos.length!==1?'s':''}`, 'var(--coral)')}
+      ${ccard('Ingresos a la fecha', money(ingresosFecha), 'recaudo real consolidado', 'var(--navy)')}
+      ${ccard('Utilidad a la fecha', money(utilFecha), `margen ${margenFecha.toFixed(1)}% sobre lo cobrado`, utilFecha>=0?'#1a6b3a':'#b93020')}
+      ${ccard('Valor total vendido', money(vendidoTotal), 'precio de venta de todos los lotes', 'var(--navy)')}
+      ${ccard('Utilidad proyectada', money(utilProyectada), `margen ${margenProy.toFixed(1)}% sobre ventas totales`, utilProyectada>=0?'#1a6b3a':'#b93020', true)}
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--ink-soft);padding:0 2px">
+      * Utilidad a la fecha = recaudo cobrado − gastos. &nbsp; Utilidad proyectada = precio total de ventas cerradas − gastos.
+    </div>`;
+}
+
+function addGasto(){
+  if(!DB.gastos)DB.gastos=[];
+  DB.gastos.push({cat:'Nueva categoría',amount:0});
+  save();renderGastos();
+}
+function deleteGasto(i){
+  if(!confirm(`¿Eliminar "${DB.gastos[i]?.cat}"?`))return;
+  DB.gastos.splice(i,1);save();renderGastos();
+}
+
+
 function openOffline(){o_name.value="";o_amount.value="";document.getElementById("ov_off").classList.add("on");}
 function saveOffline(){const n=o_name.value.trim();const a=parseNum(o_amount.value);if(!n||a<=0){alert("Completa concepto y monto.");return;}DB.offline.push({name:n,amount:a});save();closeAll();render();}
 
