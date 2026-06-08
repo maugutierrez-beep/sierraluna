@@ -296,13 +296,11 @@
       <div class="divider"></div>
       <div class="ttl">Club Residencial<b>Control de Recaudo</b></div>
     </div>
-    <p class="sub">Sierraluna Group S.A.S. · datos guardados localmente en este navegador · permanente</p>
+    <p class="sub">Sierraluna Group S.A.S. · <span id="save_status">cargando…</span></p>
     <div class="hbtns">
       <button class="btn-gold" onclick="openPayment()">+ Registrar abono</button>
       <button class="btn-ghost" onclick="openBuyer()">+ Nuevo comprador</button>
       <button class="btn-ghost" onclick="exportCSV()">Exportar CSV</button>
-      <button class="btn-ghost" onclick="exportJSON()">Exportar JSON</button>
-      <button class="btn-ghost" onclick="importJSON()">Importar JSON</button>
       <button class="btn-ghost" onclick="resetData()">Restablecer</button>
     </div>
   </header>
@@ -747,26 +745,51 @@ function seedBuyers(){
 }
 function today(){return new Date().toISOString().slice(0,10);}
 
-/* ---------- State + storage (localStorage) ---------- */
+/* ---------- State + storage (Supabase cloud) ---------- */
+const SB_URL="https://cwqenbkjvuqtaynxpomq.supabase.co";
+const SB_KEY="sb_publishable_WGdKp8XsGWxV0hy-qNZ7-g_X_KMfGYR";
+const SB_H=()=>({"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"});
+const LS_KEY="sierraluna:db:v1";
 let DB={buyers:[],offline:[],liq:[]};
-const KEY="sierraluna:db:v1";
+let _saveTimer=null;
 
-function save(){
-  try{ localStorage.setItem(KEY,JSON.stringify(DB)); }
-  catch(e){ console.warn("localStorage save failed",e); }
+function setSaveStatus(s){
+  const el=document.getElementById('save_status');
+  if(!el)return;
+  const m={saving:'guardando en la nube…',saved:'nube ✓',error:'⚠ error al guardar',loading:'cargando…'};
+  const c={saving:'#b3893f',saved:'#2e7d4f',error:'#b04632',loading:'#8a8268'};
+  el.textContent=m[s]||s; el.style.color=c[s]||'';
 }
 
-function load(){
+function save(){
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async()=>{
+    setSaveStatus('saving');
+    const json=JSON.stringify(DB);
+    try{localStorage.setItem(LS_KEY,json);}catch(_){}
+    try{
+      const r=await fetch(SB_URL+"/rest/v1/sierraluna_db?id=eq.main",{
+        method:"PATCH",headers:{...SB_H(),"Prefer":"return=minimal"},
+        body:JSON.stringify({data:json,updated_at:new Date().toISOString()})});
+      setSaveStatus(r.ok?'saved':'error');
+    }catch(e){setSaveStatus('error');console.error('SB save:',e);}
+  },700);
+}
+
+async function load(){
+  setSaveStatus('loading');
+  let json=null;
   try{
-    const raw=localStorage.getItem(KEY);
-    if(raw){ DB=JSON.parse(raw); }
-    else { seedAll(); save(); }
-  }catch(e){ seedAll(); save(); }
-  if(!DB.buyers||!DB.buyers.length) seedAll();
-  if(!DB.offline) DB.offline=JSON.parse(JSON.stringify(SEED_OFFLINE));
-  if(!DB.liq) DB.liq=JSON.parse(JSON.stringify(SEED_LIQ));
-  if(!DB.availLots) DB.availLots=JSON.parse(JSON.stringify(SEED_AVAIL));
-  if(!DB.availLots2) DB.availLots2=JSON.parse(JSON.stringify(SEED_AVAIL2));
+    const r=await fetch(SB_URL+"/rest/v1/sierraluna_db?id=eq.main",{headers:SB_H()});
+    if(r.ok){const rows=await r.json();if(rows[0]?.data&&rows[0].data.length>5)json=rows[0].data;}
+  }catch(e){console.warn('Supabase load failed, using cache',e);}
+  if(!json)try{json=localStorage.getItem(LS_KEY);}catch(_){}
+  try{if(json&&json.length>5)DB=JSON.parse(json);}catch(e){seedAll();}
+  if(!DB.buyers||!DB.buyers.length)seedAll();
+  if(!DB.offline)DB.offline=JSON.parse(JSON.stringify(SEED_OFFLINE));
+  if(!DB.liq)DB.liq=JSON.parse(JSON.stringify(SEED_LIQ));
+  if(!DB.availLots)DB.availLots=JSON.parse(JSON.stringify(SEED_AVAIL));
+  if(!DB.availLots2)DB.availLots2=JSON.parse(JSON.stringify(SEED_AVAIL2));
   migrate();
 }
 function migrate(){
@@ -846,6 +869,7 @@ function migrate(){
   if(changed) save();
 }
 function seedAll(){ DB={buyers:seedBuyers(),offline:JSON.parse(JSON.stringify(SEED_OFFLINE)),liq:JSON.parse(JSON.stringify(SEED_LIQ)),availLots:JSON.parse(JSON.stringify(SEED_AVAIL)),availLots2:JSON.parse(JSON.stringify(SEED_AVAIL2))}; }
+
 
 /* ---------- Helpers ---------- */
 const COP=new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0});
@@ -1464,10 +1488,15 @@ async function compressImage(file){
 }
 
 async function saveVoucher(pid,dataUrl){
-  // Stored inline in payment.voucherData and saved via main save()
-  return true;
+  if(!window.storage) return false;
+  try{const r=await window.storage.set('sierraluna:v:'+pid,dataUrl,false);return !!r;}
+  catch(e){return false;}
 }
-async function deleteVoucher(pid){ /* inline, removed when payment deleted */ }
+
+async function deleteVoucher(pid){
+  if(!pid||!window.storage) return;
+  try{await window.storage.delete('sierraluna:v:'+pid,false);}catch(e){}
+}
 
 async function viewVoucher(pid,fromEvent){
   if(fromEvent){fromEvent.stopPropagation();fromEvent.preventDefault();}
@@ -1476,7 +1505,12 @@ async function viewVoucher(pid,fromEvent){
   if(el){el.innerHTML='⏳';}
   try{
     let dataUrl=null;
-    outer:for(const b of DB.buyers){for(const p of (b.payments||[])){if(p.pid===pid&&p.voucherData){dataUrl=p.voucherData;break outer;}}}
+    // 1. Try window.storage
+    if(window.storage){try{const r=await window.storage.get('sierraluna:v:'+pid,false);if(r?.value)dataUrl=r.value;}catch(e){}}
+    // 2. Inline fallback (voucherData on payment object)
+    if(!dataUrl){
+      outer:for(const b of DB.buyers){for(const p of (b.payments||[])){if(p.pid===pid&&p.voucherData){dataUrl=p.voucherData;break outer;}}}
+    }
     if(el){el.innerHTML=orig||'Ver';}
     if(!dataUrl){alert('Comprobante no encontrado.\nPuede estar en otro navegador o haber expirado.');return;}
     if(dataUrl.includes('application/pdf')){
@@ -1501,8 +1535,10 @@ async function _onGlobalFile(inp){
   try{
     const dataUrl=await compressImage(file);
     if(!dataUrl){alert('Archivo demasiado grande. Intenta con una imagen más pequeña.');return;}
+    let saved=false;
+    if(window.storage) try{saved=!!(await window.storage.set('sierraluna:v:'+pid,dataUrl,false));}catch(e){}
     let found=false;
-    DB.buyers.forEach(b=>{(b.payments||[]).forEach(p=>{if(p.pid===pid){p.hasVoucher=true;p.voucherData=dataUrl;found=true;}});});
+    DB.buyers.forEach(b=>{(b.payments||[]).forEach(p=>{if(p.pid===pid){p.hasVoucher=true;if(!saved)p.voucherData=dataUrl;found=true;}});});
     if(!found){alert('Pago no encontrado.');return;}
     save();render();renderMovimientos();
   }catch(e){alert('Error: '+e.message);}
@@ -1624,7 +1660,7 @@ function saveOffline(){const n=o_name.value.trim();const a=parseNum(o_amount.val
 /* ---------- Misc ---------- */
 function closeAll(){document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("on"));}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
-function resetData(){if(confirm("Esto restablece todos los datos a la planilla original y borra los abonos que hayas registrado. ¿Continuar?")){seedAll();save();render();}}
+async function resetData(){if(confirm("Esto restablece todos los datos a la planilla original y borra los abonos que hayas registrado. ¿Continuar?")){seedAll();await save();render();}}
 function exportCSV(){
   const head=["Codigo","Comprador","Lote","Fecha","Tamano_m2","Precio_m2","Ventas_Totales","Abonado","Saldo","Pct_Abono","Financiacion","Promesa","Vendedor","Comision"];
   const lines=[head.join(";")];
@@ -1633,32 +1669,6 @@ function exportCSV(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="sierraluna_recaudo.csv";a.click();
 }
 document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{if(e.target===o)closeAll();}));
-
-/* ---------- JSON Export / Import ---------- */
-function exportJSON(){
-  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='Sierraluna_DB_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-}
-function importJSON(){
-  const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';
-  inp.onchange=e=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try{
-        const parsed=JSON.parse(ev.target.result);
-        if(!parsed.buyers||!Array.isArray(parsed.buyers)){alert('Archivo JSON inválido — no tiene el formato correcto.');return;}
-        if(!confirm('¿Reemplazar todos los datos actuales con los del archivo importado?'))return;
-        DB=parsed;save();render();
-        alert('Datos importados correctamente.');
-      }catch(err){alert('Error al leer el archivo: '+err.message);}
-    };
-    reader.readAsText(file);
-  };
-  inp.click();
-}
 
 
 /* ---- Tab navigation ---- */
@@ -1846,5 +1856,5 @@ function generatePDF(buyerId){
 }
 
 /* ---------- Boot ---------- */
-load(); render(); showTab(activeTab);
+(async()=>{ await (async()=>{ await load(); render(); showTab(activeTab); setSaveStatus("saved"); })(); })();
 </script>
