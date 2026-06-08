@@ -259,6 +259,23 @@
     color:var(--ink-soft);font-family:'Montserrat';font-size:11.5px;font-weight:600;cursor:pointer;transition:.12s}
   .mpill.active,.mpill:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
   .mov-date{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:12px}
+  /* Calculator */
+  .calc-box{background:linear-gradient(135deg,#eef2ff 0%,#fafbff 100%);border:1.5px solid #d0d9f0;border-radius:16px;padding:24px 28px;margin-top:20px}
+  .calc-title{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+  .calc-desc{font-size:12px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5}
+  .calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+  .calc-item{background:#fff;border-radius:12px;padding:16px 18px;border:1px solid var(--line)}
+  .calc-item.input-item{border:2px solid var(--navy);background:#f5f7ff}
+  .calc-lbl{font-size:10.5px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .calc-val-big{font-size:22px;font-weight:800;color:var(--navy)}
+  .calc-val-big span{font-size:13px;font-weight:500;color:var(--ink-soft);margin-left:3px}
+  .calc-sub{font-size:11px;color:var(--ink-soft);margin-top:4px}
+  .calc-res-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .calc-res-item{background:#fff;border-radius:12px;padding:18px 20px;border:1px solid var(--line)}
+  .calc-res-item.total{border:2px solid var(--navy);background:var(--navy)}
+  .calc-res-item.total .calc-lbl,.calc-res-item.total .calc-sub{color:rgba(255,255,255,.65)}
+  .calc-res-item.total .calc-res-big{color:#fff !important}
+  .calc-res-big{font-size:22px;font-weight:800;font-family:'Montserrat';margin:6px 0 4px}
 
   .btn-vc{font-size:10.5px;font-weight:700;font-family:'Montserrat';padding:4px 10px;border-radius:7px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.12s}
   .btn-vc.has-vc{background:#edf3fb;border-color:#c5d4ec;color:var(--navy);border-style:solid}
@@ -1002,10 +1019,17 @@ function renderIndicators(){
   const valorDisp=areaDisp*precioM2;
   const valorTotal1=vendido1+valorDisp;
   const pctValor=valorTotal1>0?vendido1/valorTotal1*100:0;
+
+  // Store globals for calculator
+  window._calcAreaDisp=areaDisp;
+  window._calcVendido1=vendido1;
+  window._calcPrecioPromedio=precioM2;
+
   const cards=[
     {l:"Valor total Etapa 1",v:money(valorTotal1),s:"vendido + disponible, al precio promedio",cls:"good"},
     {l:"% del valor vendido",v:pctValor.toFixed(1)+"%",s:`${money(vendido1)} de ${money(valorTotal1)}`,cls:"good"},
-    {l:"Disponible por vender",v:`${availE1.length} lotes`,s:`${NUM.format(Math.round(areaDisp))} m² en Etapa 1`,cls:"accent"},
+    {l:"Disponible por vender",v:`${availE1.length} lotes`,s:`${NUM.format(Math.round(areaDisp))} m² · Etapa 1`,cls:"accent"},
+    {l:"M² disponibles Etapa 1",v:`${NUM.format(Math.round(areaDisp))} m²`,s:`${availE1.length} lotes sin vender`,cls:"accent"},
     {l:"Valor de lo disponible",v:money(valorDisp),s:"lo que queda por vender, al precio promedio"},
     {l:"Precio promedio por m²",v:money(precioM2),s:"de las ventas de Etapa 1"},
     {l:"Comisiones a vendedores",v:money(comis),s:`${comisPct.toFixed(1)}% de lo vendido`,cls:"accent"},
@@ -1013,7 +1037,82 @@ function renderIndicators(){
     {l:"Invertido en el proyecto",v:money(gastado),s:"gastado a la fecha"},
   ];
   const card=c=>`<div class="ind ${c.cls||''}"><div class="il">${c.l}</div><div class="iv">${c.v}</div><div class="is">${c.s}</div></div>`;
-  document.getElementById("indgrid").innerHTML=`<div class="ind-section"><div class="ind-grid">${cards.map(card).join("")}</div></div>`;
+
+  // Calculator HTML (pre-filled with average price)
+  const pm2fmt=Math.round(precioM2).toLocaleString('es-CO');
+  const calcHtml=`
+  <div class="calc-box">
+    <div class="calc-title">Calculadora · proyección de ingresos por precio/m²</div>
+    <div class="calc-desc">Lo vendido está fijo. Esta calculadora proyecta cuánto generarán los lotes que aún no has vendido según el precio que tú definas.</div>
+    <div class="calc-grid">
+      <div class="calc-item fixed">
+        <div class="calc-lbl">M² disponibles Etapa 1</div>
+        <div class="calc-val-big">${NUM.format(Math.round(areaDisp))} <span>m²</span></div>
+        <div class="calc-sub">${availE1.length} lotes sin vender</div>
+      </div>
+      <div class="calc-item fixed">
+        <div class="calc-lbl">Precio promedio actual</div>
+        <div class="calc-val-big">${money(precioM2)}<span>/m²</span></div>
+        <div class="calc-sub">basado en ventas Etapa 1</div>
+      </div>
+      <div class="calc-item input-item">
+        <div class="calc-lbl">Tu precio por m² a proyectar</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="font-size:14px;font-weight:700;color:var(--navy)">$</span>
+          <input id="calc_pm2" type="text" inputmode="numeric"
+            value="${pm2fmt}"
+            oninput="updateCalc()"
+            style="width:160px;padding:10px 12px;border:2px solid var(--navy);border-radius:10px;font-size:18px;font-weight:700;font-family:'Montserrat';color:var(--navy);text-align:right;background:var(--bg2)">
+          <span style="font-size:13px;color:var(--ink-soft)">/m²</span>
+        </div>
+        <div class="calc-sub">edita el precio y el resultado se actualiza</div>
+      </div>
+    </div>
+    <div class="calc-results" id="calc_results">
+      <!-- populated by updateCalc() -->
+    </div>
+  </div>`;
+
+  document.getElementById("indgrid").innerHTML=
+    `<div class="ind-section"><div class="ind-grid">${cards.map(card).join("")}</div></div>`+calcHtml;
+
+  updateCalc();
+}
+
+function updateCalc(){
+  const inp=document.getElementById('calc_pm2');
+  if(!inp)return;
+  const pm2=parseNum(inp.value)||0;
+  const areaDisp=window._calcAreaDisp||0;
+  const vendido1=window._calcVendido1||0;
+  const promedio=window._calcPrecioPromedio||0;
+  const ingresosPorVender=areaDisp*pm2;
+  const totalProyectado=vendido1+ingresosPorVender;
+  const deltaVsProm=ingresosPorVender-(areaDisp*promedio);
+  const deltaStr=deltaVsProm>=0
+    ?`<span style="color:#2e7d4f">+${money(deltaVsProm)} vs precio promedio</span>`
+    :`<span style="color:#b04632">${money(deltaVsProm)} vs precio promedio</span>`;
+
+  const el=document.getElementById('calc_results');
+  if(!el)return;
+  el.innerHTML=`
+    <div class="calc-res-row">
+      <div class="calc-res-item">
+        <div class="calc-lbl">Ingresos por los lotes que faltan</div>
+        <div class="calc-res-big" style="color:var(--coral)">${money(ingresosPorVender)}</div>
+        <div class="calc-sub">${NUM.format(Math.round(areaDisp))} m² × ${money(pm2)}/m² &nbsp;·&nbsp; ${deltaStr}</div>
+      </div>
+      <div class="calc-res-item">
+        <div class="calc-lbl">Ya vendido Etapa 1 (fijo)</div>
+        <div class="calc-res-big" style="color:var(--navy)">${money(vendido1)}</div>
+        <div class="calc-sub">no cambia con el precio que definas</div>
+      </div>
+      <div class="calc-res-item total">
+        <div class="calc-lbl">Total proyecto a este precio</div>
+        <div class="calc-res-big" style="color:var(--navy);font-size:26px">${money(totalProyectado)}</div>
+        <div class="calc-sub">lo vendido + lo proyectado por vender</div>
+      </div>
+    </div>`;
 }
 
 const MANZ_ORDER=["A","H","I","J","K","L","X","Y"];
