@@ -302,6 +302,8 @@
   .calc-res-item.total .calc-res-big{color:#fff !important}
   .calc-res-big{font-size:22px;font-weight:800;font-family:'Montserrat';margin:6px 0 4px}
 
+  .btn-rc{font-size:10px;font-weight:700;font-family:'Montserrat';padding:4px 9px;border-radius:7px;border:1.5px solid #b3893f;background:#fffbf2;color:#8a6820;cursor:pointer;white-space:nowrap;transition:.12s}
+  .btn-rc:hover{background:#b3893f;color:#fff}
   .btn-vc{font-size:10.5px;font-weight:700;font-family:'Montserrat';padding:4px 10px;border-radius:7px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.12s}
   .btn-vc.has-vc{background:#edf3fb;border-color:#c5d4ec;color:var(--navy);border-style:solid}
   .btn-vc.has-vc:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -613,6 +615,8 @@
         <div class="fg"><label>Código</label><input type="text" id="b_code" placeholder="V042"></div>
         <div class="fg"><label>Comprador</label><input type="text" id="b_name"></div>
         <div class="fg"><label>WhatsApp / Teléfono</label><input type="text" id="b_tel" placeholder="3001234567" inputmode="numeric"></div>
+        <div class="fg"><label>NIT / Cédula</label><input type="text" id="b_nit" placeholder="80.098.458-1"></div>
+        <div class="fg" style="grid-column:1/-1"><label>Dirección</label><input type="text" id="b_dir" placeholder="Cra 30 # 3-95, Casa C5"></div>
       </div>
       <div class="grid3">
         <div class="fg"><label>Lote</label><input type="text" id="b_lote"></div>
@@ -924,6 +928,7 @@ function migrate(){
     DB.offline=[];
     DB._offlineIndividual=true; changed=true;
   }
+  if(!DB.reciboCounter) {DB.reciboCounter=1; changed=true;}
   // Init gastos from existing "Gastado (acumulado)" if first time
   if(!DB.gastos){
     const existing=(DB.liq.find(x=>x.k==="Gastado (acumulado)")||{v:0}).v;
@@ -1870,12 +1875,14 @@ function openBuyer(id){
     const b=DB.buyers.find(x=>x.id===id);t.textContent="Editar comprador";initWrap.style.display="none";
     b_code.value=b.code;b_name.value=b.name;b_lote.value=b.lote;b_fecha.value=b.iso||"";b_tam.value=b.tam||"";
     document.getElementById('b_tel').value=b.tel||"";
+    document.getElementById('b_nit').value=b.nit||"";
+    document.getElementById('b_dir').value=b.dir||"";
     b_total.value=b.total?NUM.format(b.total):"";b_pm2.value=b.pm2?NUM.format(b.pm2):"";b_com.value=b.com?NUM.format(b.com):"";
     b_fin.value=b.fin;b_prom.value=b.prom;b_vend.value=b.vend;document.getElementById("b_stage").value=b.stage||1;
     document.getElementById("b_delbtn").style.display="inline-block";
   } else {
     t.textContent="Nuevo comprador";initWrap.style.display="block";
-    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init","b_tel"].forEach(k=>document.getElementById(k).value="");
+    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init","b_tel","b_nit","b_dir"].forEach(k=>document.getElementById(k).value="");
     document.getElementById("b_stage").value="1";
     document.getElementById("b_delbtn").style.display="none";
     b_fecha.value=today();
@@ -1891,7 +1898,7 @@ function saveBuyer(){
   if(!name){alert("El nombre del comprador es obligatorio.");return;}
   const iso=b_fecha.value;
   let fecha="";if(iso){const d=new Date(iso+"T00:00");const mn=Object.keys(MONTHS)[d.getMonth()];fecha=`${mn}-${String(d.getFullYear()).slice(2)}`;}
-  const data={code,name,tel:(document.getElementById('b_tel').value||'').replace(/\D/g,''),lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
+  const data={code,name,tel:(document.getElementById('b_tel').value||'').replace(/\D/g,''),nit:(document.getElementById('b_nit').value||'').trim(),dir:(document.getElementById('b_dir').value||'').trim(),lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
     pm2:parseNum(b_pm2.value),com:parseNum(b_com.value),fin:b_fin.value.trim(),prom:b_prom.value.trim(),vend:b_vend.value.trim(),stage:parseInt(document.getElementById("b_stage").value)||1};
   if(editId){Object.assign(DB.buyers.find(x=>x.id===editId),data);}
   else{
