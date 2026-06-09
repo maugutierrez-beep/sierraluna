@@ -1554,8 +1554,9 @@ function renderMovimientos(){
       <td style="font-size:12.5px">${esc(m.note)}${chanBadge}</td>
       <td class="r">${money(m.amount)}</td>
       <td style="text-align:center">${vcBtn}</td>
-      <td class="tbl-last" style="text-align:right">
-        <button class="ie" title="Editar" onclick="openEditMovement('${m.buyerId}',${m.payIdx})">✎</button>
+      <td class="tbl-last" style="text-align:right;white-space:nowrap">
+        <button class="btn-rc" onclick="generateRecibo('${m.buyerId}',${m.payIdx})">Recibo</button>
+        <button class="ie" title="Editar" style="margin-left:4px" onclick="openEditMovement('${m.buyerId}',${m.payIdx})">✎</button>
       </td></tr>`;
   });
   if(!rows) rows=`<tr><td colspan="6" style="padding:16px;color:var(--ink-soft)">Sin movimientos que coincidan con los filtros.</td></tr>`;
@@ -1567,6 +1568,139 @@ function renderMovimientos(){
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+}
+
+/* ---------- Recibo de caja ---------- */
+function numToWords(n){
+  if(n===0)return'cero';
+  const u=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+  const d=['','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const c=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+  function chunk(x){if(x===100)return'cien';if(x<30)return u[x];if(x<100){const t=Math.floor(x/10),r=x%10;return d[t]+(r?' y '+u[r]:'');}const h=Math.floor(x/100),r=x%100;return c[h]+(r?' '+chunk(r):'');}
+  n=Math.abs(Math.round(n));let res='';
+  const mm=Math.floor(n/1e9);if(mm)res+=(mm===1?'mil millones':chunk(mm)+' mil millones')+' ';
+  const mi=Math.floor((n%1e9)/1e6);if(mi)res+=(mi===1?'un millón':chunk(mi)+' millones')+' ';
+  const k=Math.floor((n%1e6)/1e3);if(k)res+=(k===1?'mil':chunk(k)+' mil')+' ';
+  const r=n%1e3;if(r)res+=chunk(r)+' ';
+  return res.trim();
+}
+
+function generateRecibo(buyerId,payIdx){
+  const b=DB.buyers.find(x=>x.id===buyerId);if(!b)return;
+  const p=(b.payments||[])[payIdx];if(!p)return;
+  if(!DB.reciboCounter)DB.reciboCounter=1;
+  const num=DB.reciboCounter++;save();
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210;
+  const navy=[26,51,82],coral=[183,107,55],gr=[100,100,100],lg=[220,225,235];
+
+  // ── Top navy bar ─────────────────────────────────────────
+  doc.setFillColor(...navy);doc.rect(0,0,W,30,'F');
+
+  // White logo box
+  doc.setFillColor(255,255,255);doc.roundedRect(10,5,42,20,2,2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(...navy);
+  doc.text('SIERRALUNA',14,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...gr);
+  doc.text('CLUB RESIDENCIAL',14,17);doc.text('Valledupar · Colombia',14,21);
+
+  // Company name center
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(12);
+  doc.text('SIERRALUNA GROUP S.A.S.',W/2,12,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.text('NIT 901.814.712-8   ·   CR 11 11 07 OF 201',W/2,18,{align:'center'});
+  doc.text('Tel: (057) 310615696   ·   Valledupar, Colombia',W/2,23,{align:'center'});
+
+  // Recibo badge top-right
+  doc.setFillColor(255,255,255);doc.roundedRect(155,5,44,20,2,2,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(...coral);
+  doc.text('RECIBO',177,15,{align:'center'});
+  doc.setFontSize(9);doc.setTextColor(...navy);
+  doc.text('No '+String(num).padStart(4,'0'),177,22,{align:'center'});
+
+  // ── Buyer block ───────────────────────────────────────────
+  let y=36;
+  doc.setDrawColor(...lg);doc.setLineWidth(0.3);doc.rect(10,y,190,32);
+  // Recibimos de
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);
+  doc.text('Recibimos de',12,y+6);
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(...navy);
+  doc.text((b.name||'').toUpperCase(),42,y+6);
+  // NIT + Tel
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('NIT / Cédula',12,y+14);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);doc.text(b.nit||'—',40,y+14);
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('Teléfono',110,y+14);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);doc.text(b.tel||'—',130,y+14);
+  // Dir + Ciudad
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('Dirección',12,y+24);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);doc.text(b.dir||'—',35,y+24,{maxWidth:80});
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('Ciudad',110,y+24);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);doc.text('Valledupar - Colombia',130,y+24);
+
+  // ── Fecha + Forma de pago ─────────────────────────────────
+  y=72;
+  doc.setFillColor(245,247,252);doc.rect(120,y,80,16,'F');
+  doc.setDrawColor(...lg);doc.rect(120,y,80,16);doc.line(155,y,155,y+16);
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);
+  doc.text('Fecha recibo',137,y+5,{align:'center'});
+  doc.text('Forma de pago',168,y+5,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);
+  doc.text(p.date||'—',137,y+12,{align:'center'});
+  doc.text(p.chan==='Offline'?'Efectivo':'Transferencia',168,y+12,{align:'center'});
+
+  // ── Amount in words ───────────────────────────────────────
+  y=93;
+  doc.setFillColor(249,250,255);doc.rect(10,y,190,14,'F');doc.setDrawColor(...lg);doc.rect(10,y,190,14);
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('El valor de',12,y+5);
+  const words=numToWords(+p.amount||0);
+  const letras=(words.charAt(0).toUpperCase()+words.slice(1))+' pesos m/cte';
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);
+  doc.text(letras,36,y+6,{maxWidth:120});
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(...navy);
+  doc.text(NUM.format(+p.amount||0)+'.00',199,y+9,{align:'right'});
+
+  // ── Concept table ─────────────────────────────────────────
+  y=112;
+  doc.setFillColor(...navy);doc.rect(10,y,190,8,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(255,255,255);
+  doc.text('De clientes',12,y+5.5);doc.text('Concepto',95,y+5.5,{align:'center'});
+  doc.text('Fecha',155,y+5.5,{align:'center'});doc.text('Valor',198,y+5.5,{align:'right'});
+  y+=8;
+  doc.setFillColor(252,252,252);doc.rect(10,y,190,13,'F');doc.setDrawColor(...lg);doc.rect(10,y,190,13);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);
+  const ref='RC-'+String(num).padStart(7,'0');
+  doc.text(ref,12,y+8.5);
+  const concept=(p.note||'Abono')+(b.lote?' · Lote '+b.lote:'');
+  doc.text(concept.slice(0,50),45,y+8.5);
+  doc.text(p.date||'',155,y+8.5,{align:'center'});
+  doc.text(NUM.format(+p.amount||0)+'.00',198,y+8.5,{align:'right'});
+  // Total
+  y+=13;
+  doc.setFillColor(238,242,252);doc.rect(10,y,190,11,'F');doc.setDrawColor(...lg);doc.rect(10,y,190,11);
+  doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(...navy);
+  doc.text('Total COP',145,y+7.5,{align:'center'});
+  doc.setFontSize(12);doc.text(NUM.format(+p.amount||0)+'.00',198,y+7.5,{align:'right'});
+
+  // ── Observations ──────────────────────────────────────────
+  y+=17;
+  doc.setDrawColor(...lg);doc.rect(10,y,190,22);
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('Observaciones:',12,y+6);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);
+  doc.text('Lote '+(b.lote||'—')+' adquirido en el proyecto Sierraluna Club Residencial.',12,y+13,{maxWidth:185});
+
+  // ── Footer ────────────────────────────────────────────────
+  y+=28;doc.setDrawColor(...lg);doc.line(10,y,200,y);
+  doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(...gr);
+  doc.text('Sierraluna Group S.A.S. · NIT 901.814.712-8 · Documento generado electrónicamente · '+new Date().toLocaleString('es-CO'),W/2,y+5,{align:'center'});
+
+  // ── Show PDF viewer ───────────────────────────────────────
+  const fn='Recibo_'+String(num).padStart(4,'0')+'_'+b.code+'.pdf';
+  const uri=doc.output('datauristring');
+  document.getElementById('pdf_frame').src=uri;
+  document.getElementById('pdf_dl').href=uri;document.getElementById('pdf_dl').download=fn;
+  document.getElementById('pdf_label').textContent=fn;
+  document.getElementById('ov_pdf').style.display='flex';
 }
 
 function openEditMovement(buyerId, payIdx){
