@@ -617,6 +617,7 @@
         <div class="fg"><label>WhatsApp / Teléfono</label><input type="text" id="b_tel" placeholder="3001234567" inputmode="numeric"></div>
         <div class="fg"><label>NIT / Cédula</label><input type="text" id="b_nit" placeholder="80.098.458-1"></div>
         <div class="fg" style="grid-column:1/-1"><label>Dirección</label><input type="text" id="b_dir" placeholder="Cra 30 # 3-95, Casa C5"></div>
+        <div class="fg"><label>Correo electrónico</label><input type="email" id="b_email" placeholder="nombre@email.com"></div>
       </div>
       <div class="grid3">
         <div class="fg"><label>Lote</label><input type="text" id="b_lote"></div>
@@ -928,7 +929,18 @@ function migrate(){
     DB.offline=[];
     DB._offlineIndividual=true; changed=true;
   }
-  if(!DB.reciboCounter) {DB.reciboCounter=1; changed=true;}
+  // Recibo counter starts at 269
+  if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
+  // Pre-populate V006 Luis Cesar Rueda personal info
+  const _v006=DB.buyers.find(b=>b.code==='V006');
+  if(_v006&&!_v006.nit){
+    _v006.name='Luis Cesar Rueda Arias';
+    _v006.nit='77.024.260';
+    _v006.dir='Mirador de la Sierra 4 Manzana D Casa 02, Valledupar';
+    _v006.email='Luiscesarrueda@gmail.com';
+    _v006.tel='3107107289';
+    changed=true;
+  }
   // Init gastos from existing "Gastado (acumulado)" if first time
   if(!DB.gastos){
     const existing=(DB.liq.find(x=>x.k==="Gastado (acumulado)")||{v:0}).v;
@@ -1621,7 +1633,7 @@ function generateRecibo(buyerId,payIdx){
 
   // ── Buyer block ───────────────────────────────────────────
   let y=36;
-  doc.setDrawColor(...lg);doc.setLineWidth(0.3);doc.rect(10,y,190,32);
+  const bH=b.email?40:32;doc.setDrawColor(...lg);doc.setLineWidth(0.3);doc.rect(10,y,190,bH);
   // Recibimos de
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);
   doc.text('Recibimos de',12,y+6);
@@ -1639,7 +1651,7 @@ function generateRecibo(buyerId,payIdx){
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);doc.text('Valledupar - Colombia',130,y+24);
 
   // ── Fecha + Forma de pago ─────────────────────────────────
-  y=72;
+  y=36+bH+4;
   doc.setFillColor(245,247,252);doc.rect(120,y,80,16,'F');
   doc.setDrawColor(...lg);doc.rect(120,y,80,16);doc.line(155,y,155,y+16);
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);
@@ -2011,12 +2023,13 @@ function openBuyer(id){
     document.getElementById('b_tel').value=b.tel||"";
     document.getElementById('b_nit').value=b.nit||"";
     document.getElementById('b_dir').value=b.dir||"";
+    document.getElementById('b_email').value=b.email||"";
     b_total.value=b.total?NUM.format(b.total):"";b_pm2.value=b.pm2?NUM.format(b.pm2):"";b_com.value=b.com?NUM.format(b.com):"";
     b_fin.value=b.fin;b_prom.value=b.prom;b_vend.value=b.vend;document.getElementById("b_stage").value=b.stage||1;
     document.getElementById("b_delbtn").style.display="inline-block";
   } else {
     t.textContent="Nuevo comprador";initWrap.style.display="block";
-    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init","b_tel","b_nit","b_dir"].forEach(k=>document.getElementById(k).value="");
+    ["b_code","b_name","b_lote","b_tam","b_total","b_pm2","b_com","b_fin","b_prom","b_vend","b_init","b_tel","b_nit","b_dir","b_email"].forEach(k=>document.getElementById(k).value="");
     document.getElementById("b_stage").value="1";
     document.getElementById("b_delbtn").style.display="none";
     b_fecha.value=today();
@@ -2032,7 +2045,7 @@ function saveBuyer(){
   if(!name){alert("El nombre del comprador es obligatorio.");return;}
   const iso=b_fecha.value;
   let fecha="";if(iso){const d=new Date(iso+"T00:00");const mn=Object.keys(MONTHS)[d.getMonth()];fecha=`${mn}-${String(d.getFullYear()).slice(2)}`;}
-  const data={code,name,tel:(document.getElementById('b_tel').value||'').replace(/\D/g,''),nit:(document.getElementById('b_nit').value||'').trim(),dir:(document.getElementById('b_dir').value||'').trim(),lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
+  const data={code,name,tel:(document.getElementById('b_tel').value||'').replace(/\D/g,''),nit:(document.getElementById('b_nit').value||'').trim(),dir:(document.getElementById('b_dir').value||'').trim(),email:(document.getElementById('b_email').value||'').trim(),lote:b_lote.value.trim(),iso,fecha,tam:parseNum(b_tam.value),total:parseNum(b_total.value),
     pm2:parseNum(b_pm2.value),com:parseNum(b_com.value),fin:b_fin.value.trim(),prom:b_prom.value.trim(),vend:b_vend.value.trim(),stage:parseInt(document.getElementById("b_stage").value)||1};
   if(editId){Object.assign(DB.buyers.find(x=>x.id===editId),data);}
   else{
