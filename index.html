@@ -451,6 +451,17 @@
     </div>
   </div>
 
+
+  <!-- Ingresos Spendee -->
+  <div class="panel" data-section="finanzas">
+    <div class="panel-h">
+      <div><h2>Ingresos registrados en Spendee</h2>
+        <div class="desc">Entradas de dinero al 10 de junio de 2026. Incluye ventas, rendimientos y aportes de socios.</div>
+      </div>
+    </div>
+    <div id="ingresos_body"></div>
+    <div id="ingresos_recon" style="margin-top:20px"></div>
+  </div>
   <!-- Gastos y Utilidad -->
   <div class="panel" data-section="finanzas">
     <div class="panel-h">
@@ -1018,6 +1029,11 @@ function migrate(){
     DB.gastos.push({cat:'Fiducuenta Principal Bancolombia', amount:491520461.40});
     DB._gastosTransfers=true; changed=true;
   }
+  if(!DB._ingresosSeed){
+    DB.ingresos=[{"cat":"Ventas","amount":6906814226.2},{"cat":"Rendimientos Financieros","amount":68160869.31},{"cat":"Reintegro Arriendos Oficina SL","amount":21915000.0},{"cat":"Aportes Mauricio","amount":20000000.0},{"cat":"Aportes Felipe","amount":20000000.0},{"cat":"Aportes Claudia","amount":20000000.0},{"cat":"Aportes Marautos","amount":15000000.0},{"cat":"Otros","amount":8672000.0},{"cat":"Alquileres","amount":4310000.0}];
+    DB._ingresosSeed=true; changed=true;
+  }
+  if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
@@ -1144,7 +1160,7 @@ function render(){
   });
   document.getElementById("t_count").textContent=`${rows.length} de ${DB.buyers.length} compradores`;
 
-  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();renderGastos();fillFilters();drawCharts();renderQFBar();renderAlertas();
+  renderKPIs();renderIndicators();renderInventory();renderCobranza();renderLiq();renderOffline();renderIngresos();renderGastos();fillFilters();drawCharts();renderQFBar();renderAlertas();
 }
 
 function onlinePaid(b){return (b.payments||[]).filter(p=>p.chan!=="Offline").reduce((a,p)=>a+(+p.amount||0),0);}
@@ -2145,6 +2161,64 @@ function saveBuyer(){
   save();closeAll();render();
 }
 function delBuyer(id){const b=DB.buyers.find(x=>x.id===id);if(confirm(`¿Eliminar a ${b.name}? Esta acción no se puede deshacer.`)){DB.buyers=DB.buyers.filter(x=>x.id!==id);save();render();}}
+
+
+/* ---------- Ingresos Spendee ---------- */
+function renderIngresos(){
+  const body=document.getElementById('ingresos_body');
+  const recon=document.getElementById('ingresos_recon');
+  if(!body||!recon)return;
+  const ing=DB.ingresos||[];
+  const totalIng=ing.reduce((s,x)=>s+(+x.amount||0),0);
+  const totalGastos=(DB.gastos||[]).reduce((s,x)=>s+(+x.amount||0),0);
+  const r=recaudo();
+  const recaudoDb=r.total; // online + offline from dashboard
+  const ventasSpendee=(ing.find(x=>x.cat==='Ventas')||{amount:0}).amount;
+  const diff=ventasSpendee-recaudoDb;
+
+  // Table
+  body.innerHTML=`<div class="tscroll"><table class="invtbl">
+    <thead><tr>
+      <th class="tbl-first">Categoría</th>
+      <th class="r">Monto Spendee</th>
+      <th class="r">% del total</th>
+    </tr></thead>
+    <tbody>${ing.sort((a,b)=>b.amount-a.amount).map((x,i)=>`<tr class="lotrow">
+      <td class="tbl-first" style="font-weight:600;color:var(--navy)">${esc(x.cat)}</td>
+      <td class="r">${money(x.amount)}</td>
+      <td class="r" style="color:var(--ink-soft)">${totalIng>0?(x.amount/totalIng*100).toFixed(1)+'%':'—'}</td>
+    </tr>`).join('')}
+    <tr style="background:#f0f4ff">
+      <td class="tbl-first" style="font-weight:800;color:var(--navy)">Total ingresos</td>
+      <td class="r" style="font-weight:800;font-size:14px;color:var(--navy)">${money(totalIng)}</td>
+      <td class="r" style="font-weight:700;color:var(--ink-soft)">100%</td>
+    </tr>
+    </tbody></table></div>`;
+
+  // Reconciliation cards
+  const flujoNeto=totalIng-totalGastos;
+  const c=(title,val,sub,col,big=false)=>`<div style="background:${big?'var(--navy)':'#fff'};border:1.5px solid ${big?'var(--navy)':'var(--line)'};border-radius:14px;padding:16px 18px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${big?'rgba(255,255,255,.6)':'var(--ink-soft)'};margin-bottom:6px">${title}</div>
+    <div style="font-size:${big?'22':'18'}px;font-weight:800;color:${big?'#fff':col};font-family:'Montserrat'">${val}</div>
+    <div style="font-size:11px;margin-top:4px;color:${big?'rgba(255,255,255,.55)':'var(--ink-soft)'}">${sub}</div>
+  </div>`;
+
+  recon.innerHTML=`
+    <div style="border-top:1.5px solid var(--line);padding-top:16px">
+      <div style="font-size:11.5px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Reconciliación y flujo de caja</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        ${c('Ventas Spendee',money(ventasSpendee),'ingresos por ventas según Spendee','var(--navy)')}
+        ${c('Recaudo Dashboard',money(recaudoDb),'online + offline registrado en portal','var(--navy)')}
+        ${c('Diferencia',money(diff),diff>0?'Spendee tiene más (posible registro pendiente en portal)':diff<0?'Dashboard tiene más':' Cuadran perfectamente ✓',diff===0?'#2e7d4f':Math.abs(diff)<50e6?'#8c5a00':'#b93020')}
+        ${c('Total ingresos Spendee',money(totalIng),'ventas + rendimientos + aportes + otros','#274a72')}
+        ${c('Total gastos Spendee',money(totalGastos),(DB.gastos?.length||0)+' categorías','var(--coral)')}
+        ${c('Flujo neto de caja',money(flujoNeto),'ingresos − gastos (caja, no utilidad)',flujoNeto>=0?'#1a6b3a':'#b93020',true)}
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--ink-soft)">
+        * El flujo neto de caja es distinto a la utilidad del negocio. La utilidad se calcula en la sección de Gastos y Utilidad usando el valor total vendido.
+      </div>
+    </div>`;
+}
 
 /* ---------- Gastos y Utilidad ---------- */
 function renderGastos(){
