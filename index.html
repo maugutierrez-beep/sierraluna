@@ -1033,6 +1033,23 @@ function migrate(){
     DB.ingresos=[{"cat":"Ventas","amount":6906814226.2},{"cat":"Rendimientos Financieros","amount":68160869.31},{"cat":"Reintegro Arriendos Oficina SL","amount":21915000.0},{"cat":"Aportes Mauricio","amount":20000000.0},{"cat":"Aportes Felipe","amount":20000000.0},{"cat":"Aportes Claudia","amount":20000000.0},{"cat":"Aportes Marautos","amount":15000000.0},{"cat":"Otros","amount":8672000.0},{"cat":"Alquileres","amount":4310000.0}];
     DB._ingresosSeed=true; changed=true;
   }
+  if(!DB._spendeeOffline){
+    // Ingresos: add offline ventas
+    if(!DB.ingresos) DB.ingresos=[];
+    if(!DB.ingresos.find(x=>x.cat==='Ventas Offline'))
+      DB.ingresos.push({cat:'Ventas Offline (Sierraluna Offline)',amount:743600000.00});
+    // Gastos: add offline expenses
+    if(!DB.gastos) DB.gastos=[];
+    const offG=[
+      {cat:'Retiro en Cajero (Offline)',amount:15600000.00},
+      {cat:'Comisiones por Ventas (Offline)',amount:9787500.00},
+      {cat:'Trámites y Documentación (Offline)',amount:8000000.00},
+      {cat:'Aportes Políticos',amount:5000000.00},
+      {cat:'Impuestos (Offline)',amount:200000.00},
+    ];
+    offG.forEach(g=>{if(!DB.gastos.find(x=>x.cat===g.cat))DB.gastos.push(g);});
+    DB._spendeeOffline=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
@@ -2173,7 +2190,9 @@ function renderIngresos(){
   const totalGastos=(DB.gastos||[]).reduce((s,x)=>s+(+x.amount||0),0);
   const r=recaudo();
   const recaudoDb=r.total; // online + offline from dashboard
-  const ventasSpendee=(ing.find(x=>x.cat==='Ventas')||{amount:0}).amount;
+  const ventasOnline=(ing.find(x=>x.cat==='Ventas')||{amount:0}).amount;
+  const ventasOfflineSpendee=(ing.find(x=>x.cat==='Ventas Offline (Sierraluna Offline)')||{amount:0}).amount;
+  const ventasSpendee=ventasOnline+ventasOfflineSpendee;
   const diff=ventasSpendee-recaudoDb;
 
   // Table
@@ -2207,7 +2226,7 @@ function renderIngresos(){
     <div style="border-top:1.5px solid var(--line);padding-top:16px">
       <div style="font-size:11.5px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Reconciliación y flujo de caja</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
-        ${c('Ventas Spendee',money(ventasSpendee),'ingresos por ventas según Spendee','var(--navy)')}
+        ${c('Ventas Spendee (online+offline)',money(ventasSpendee),'online '+money(ventasOnline)+' · offline '+money(ventasOfflineSpendee),'var(--navy)')}
         ${c('Recaudo Dashboard',money(recaudoDb),'online + offline registrado en portal','var(--navy)')}
         ${c('Diferencia',money(diff),diff>0?'Spendee tiene más (posible registro pendiente en portal)':diff<0?'Dashboard tiene más':' Cuadran perfectamente ✓',diff===0?'#2e7d4f':Math.abs(diff)<50e6?'#8c5a00':'#b93020')}
         ${c('Total ingresos Spendee',money(totalIng),'ventas + rendimientos + aportes + otros','#274a72')}
