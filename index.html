@@ -997,6 +997,14 @@ function migrate(){
     });
     DB._contactos2=true; changed=true;
   }
+  // Name corrections
+  if(!DB._namesFix){
+    DB.buyers.forEach(b=>{
+      if(b.code==='V009') b.name='Yennifer Lizeth López Herazo';
+      if(b.code==='V026') b.name='Técnicas Viales SAS (DP)';
+    });
+    DB._namesFix=true; changed=true;
+  }
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
