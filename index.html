@@ -929,6 +929,51 @@ function migrate(){
     DB.offline=[];
     DB._offlineIndividual=true; changed=true;
   }
+  // Migrate buyer contact info from promesas de compraventa
+  if(!DB._contactosMigrated){
+    const _upd={
+  'V001':{name:'MGL Inversiones S.A.S. / Jose Alberto Egurrola',nit:'900968551-6',dir:'Calle 18 No. 15-46 Local 2, La Granja, Valledupar, Cesar'},
+  'V002':{name:'Julio Mario Gómez Bacci',nit:'1.065.825.470',dir:'Km 4.4 vía al Rincón, casa campo Villa Gabriela, Valledupar'},
+  'V004':{name:'Juan Manuel Gelez Suarez',nit:'77.014.534',dir:'Cra 19 # 2b - 32 Santa Rosalía, Valledupar'},
+  'V008':{name:'Inversiones Zuleta Oñate S.A.S. / Fanny Beatriz Oñate',nit:'901.506.352-9',dir:'Carrera 6 #5-21, La Paz, Cesar',tel:'3017544318',email:'fannyonatez@gmail.com'},
+  'V010':{name:'Ana Sofía Ramírez Vence / Jonathan Prada',nit:'26.871.595',dir:'Calle 4ª # 20ª-101, Valledupar, Cesar',tel:'3005564080',email:'jonathanepv@gmail.com'},
+  'V011':{name:'ONASS S.A.S. / Andrea Cristina Assis',nit:'901.789.620-1',dir:'Carrera 4 No. 74 A - 45, Bogotá D.C.',tel:'3205673343',email:'onasssas@gmail.com'},
+  'V012':{name:'Rosa María Morales Hincapié',nit:'1.065.569.917',dir:'Carrera 38 # 4-42, Conjunto Santillana MZ D Casa 3, Valledupar',tel:'3007604838',email:'especialistaencontratacion@gmail.com'},
+  'V013':{name:'Cecilia Mendoza de Gutiérrez',nit:'42.485.764',dir:'Calle 6 Bis 1 N° 35-52, Bambú Club Torre 3 Apto 303, Valledupar',tel:'3014306987',email:'cemenze2016@gmail.com'},
+  'V014':{name:'María Isabel Carrillo Hinojosa',nit:'49.768.159',dir:'Carrera 19a #102-50 Apto 201, Barrio Chico Navarra, Bogotá D.C.'},
+  'V015':{name:'Inversiones CDKS S.A.S. / Ana Sofía Rodríguez Ochoa',nit:'901853375-5',dir:'CL 20 D N 6 B 29, Valledupar, Cesar'},
+  'V016':{name:'Adriana María Rueda Cabarcas',nit:'26.946.295',dir:'Conjunto Cerrado Rosario Real Casa A14, Valledupar, Cesar'},
+  'V017':{name:'Aryanna Zuleta Oñate',nit:'49.787.780',dir:'Conjunto Cerrado Hyraca Casa 43, Valledupar, Cesar'},
+  'V018':{name:'Marlon Enrique Jiménez Hinojosa',nit:'77.192.997',dir:'Unidad Inmobiliaria Los Cañahuates, Manzana C Casa 16, Valledupar, Cesar'},
+  'V020':{name:'César Augusto Mesa Espinel',nit:'9.397.482',dir:'Calle 6 número 26-104, Fonseca, La Guajira'},
+  'V022':{name:'Álvaro Felipe Mantilla Arévalo',nit:'1.039.459.363',dir:'Cra 19 #2n-70, Valledupar, Cesar'},
+  'V023':{name:'Javier Cadena Rico',nit:'1.065.606.830',dir:'Calle 4B # 23-13, Oriente de Callejas, Valledupar',tel:'3117524677',email:'javiercadenarico24@gmail.com'},
+  'V024':{name:'Dinael Andrés Clavijo Flórez',nit:'1.065.824.985',dir:'Carrera 19D No. 9C–10, Casa 11, Valledupar',email:'dinaelclavijodc@gmail.com'},
+  'V025':{name:'Dorlandy Alberto Peña Parrales',nit:'1.100.950.054',dir:'Carrera 13 # 106-30, Interior 3, Apto 202, Bogotá D.C.',email:'dorlandycyt@gmail.com'},
+  'V029':{name:'Jaime Gabriel Móvil Brito',nit:'80.074.444'},
+  'V030':{name:'Darío José Forero Martínez',nit:'77.190.225',dir:'Diagonal 10 # 22 Bis–274, Las Margaritas Manzana A Casa 4, Valledupar',email:'dariojforero@hotmail.com'},
+  'V031':{name:'Óscar Eduardo Fonseca Castro',nit:'80.098.458',dir:'Cra 30 # 3-95, Casa C5, Conjunto María Isabella, Valledupar',email:'oscar.fonseca.castro@gmail.com'},
+  'V034':{name:'Fredy Hernández Martínez',nit:'7.178.449',dir:'Villaligia 3 F14, Valledupar',tel:'3165292230',email:'megateo.hernandez@gmail.com'},
+  'V035':{name:'Moisés David Cataño García',nit:'1.010.130.551',dir:'Calle 3 #8-58, Los Campanos, Valledupar, Cesar'},
+  'V036':{name:'Yuliana Andrea Blandón Orrego / Luis Zea',nit:'1.045.076.972',dir:'Calle 17 No. 13-20, Valledupar',email:'Administrativo@zeainversiones.com'},
+  'V038':{name:'Juan de la Cruz Olivella Becerra',nit:'15.172.327',dir:'Diagonal 10N # 22 BIS–274, Conjunto Las Margaritas Casa D-7, Valledupar',email:'cujob@hotmail.com'},
+  'V039':{name:'Ibis Conrado Quintero / Jorge García',nit:'1.065.584.492',dir:'Carrera 6B No. 47-26 Apto 201, Conjunto Palmares, Valledupar',tel:'3108747310',email:'ibiscquintero@gmail.com'},
+  'V040':{name:'Arlyn Elizabeth Quintana Diaz',nit:'1.124.037.869',dir:'Calle 13 #23-77, Maicao, La Guajira',email:'A.quintanad@hotmail.com'},
+  'V041':{name:'Glory Oluwarotimi Obielodan',nit:'Pasaporte 642125211',dir:'2437 E 5th Street, Tempe, Arizona 85288, USA',email:'gloryobielodan@gmail.com'},
+  'V043':{name:'Samir José Abisambra Vesga',nit:'79.787.780',dir:'Cll 86 No. 7-87 Apto 102, Bogotá D.C.',email:'samirabisambra@yahoo.com'}
+};
+    DB.buyers.forEach(b=>{
+      const u=_upd[b.code];
+      if(!u)return;
+      // Only set if field is empty (don't overwrite manually entered data)
+      if(u.name && !b.nit) b.name=u.name;  // update name only if no NIT yet
+      if(u.nit && !b.nit) b.nit=u.nit;
+      if(u.dir && !b.dir) b.dir=u.dir;
+      if(u.tel && !b.tel) b.tel=u.tel;
+      if(u.email && !b.email) b.email=u.email;
+    });
+    DB._contactosMigrated=true; changed=true;
+  }
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
