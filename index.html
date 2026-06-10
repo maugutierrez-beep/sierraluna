@@ -1240,6 +1240,18 @@ function renderIndicators(){
   window._calcVendido1=vendido1;
   window._calcPrecioPromedio=precioM2;
 
+  // ── Financial metrics from Spendee data ──────────────────
+  const totalGastos=(DB.gastos||[]).reduce((s,g)=>s+(+g.amount||0),0);
+  const totalIngresos=(DB.ingresos||[]).reduce((s,x)=>s+(+x.amount||0),0);
+  const rendimientos=(DB.ingresos||[]).find(x=>x.cat==='Rendimientos Financieros');
+  const rendimientosAmt=rendimientos?(+rendimientos.amount||0):0;
+  const utilidadProy=vendido1-totalGastos;
+  const margenProy=vendido1>0?(utilidadProy/vendido1*100):0;
+  const roiProy=totalGastos>0?(utilidadProy/totalGastos*100):0;
+  const recaudo_=recaudo();
+  const excedenteCaja=recaudo_.total-totalGastos;
+  const gastosSobreVendido=vendido1>0?(totalGastos/vendido1*100):0;
+
   const cards=[
     {l:"Valor total Etapa 1",v:money(valorTotal1),s:"vendido + disponible, al precio promedio",cls:"good"},
     {l:"% del valor vendido",v:pctValor.toFixed(1)+"%",s:`${money(vendido1)} de ${money(valorTotal1)}`,cls:"good"},
@@ -1288,8 +1300,24 @@ function renderIndicators(){
     </div>
   </div>`;
 
+  // Financial cards (profitability)
+  const fcards=[
+    {l:"Gastos totales a la fecha",v:money(totalGastos),s:`${(DB.gastos||[]).length} categorías · Spendee al 10 jun 2026`,cls:"accent"},
+    {l:"Utilidad proyectada Etapa 1",v:money(utilidadProy),s:`margen ${margenProy.toFixed(1)}% sobre valor vendido`,cls:"good"},
+    {l:"ROI proyectado",v:roiProy.toFixed(1)+"%",s:`por cada $100 invertido, retorna $${(100+roiProy).toFixed(0)}`,cls:"good"},
+    {l:"Excedente de caja",v:money(excedenteCaja),s:"recaudo supera gastos · punto de equilibrio alcanzado ✓",cls:excedenteCaja>=0?"good":""},
+    {l:"Rendimientos financieros",v:money(rendimientosAmt),s:"CDT, fiduciaria y otros · Spendee",cls:""},
+    {l:"Costo sobre precio de venta",v:gastosSobreVendido.toFixed(1)+"%",s:`gastos representan el ${gastosSobreVendido.toFixed(1)}% del valor vendido E1`,cls:""},
+  ];
+
   document.getElementById("indgrid").innerHTML=
-    `<div class="ind-section"><div class="ind-grid">${cards.map(card).join("")}</div></div>`+calcHtml;
+    `<div class="ind-section">
+       <div class="ind-grid">${cards.map(card).join("")}</div>
+     </div>
+     <div class="ind-section" style="margin-top:20px">
+       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:12px;padding:0 2px">Rentabilidad del proyecto</div>
+       <div class="ind-grid">${fcards.map(card).join("")}</div>
+     </div>`+calcHtml;
 
   updateCalc();
 }
