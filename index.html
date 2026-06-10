@@ -974,6 +974,29 @@ function migrate(){
     });
     DB._contactosMigrated=true; changed=true;
   }
+  // Additional buyer contacts from RCs and promesa Tecnivial
+  if(!DB._contactos2){
+    const _u2={
+      'V026':{name:'Técnicas Viales S.A.S. / María Alejandra Serrano Solano',nit:'900.957.052-5',
+              dir:'Cra 9 No. 6-42, Local 131, Valledupar, Cesar',
+              tel:'3106117531',email:'info.tecnivialsas@gmail.com'},
+      'V007':{name:'Javier Nicolás Daza Fernández',nit:'1.018.455.291',
+              dir:'CL 29 Sur 45 A 60 AP 419, Envigado, Colombia',tel:'3005564080'},
+      'V009':{name:'Yennifer Lizeth López Herazo',nit:'1.065.624.877',
+              dir:'DG 10N 22 BIS 163 AP 703, Conjunto Hiraca, Valledupar',tel:'3156685264'},
+      'V005':{name:'Jose Luis Fragozo Avendaño',nit:'1.065.608.760',
+              dir:'CL 152 48 04 AP 232, Bogotá',tel:'3005900222'},
+    };
+    DB.buyers.forEach(b=>{
+      const u=_u2[b.code];if(!u)return;
+      if(u.name) b.name=u.name;
+      if(u.nit&&!b.nit) b.nit=u.nit;
+      if(u.dir&&!b.dir) b.dir=u.dir;
+      if(u.tel&&!b.tel) b.tel=u.tel;
+      if(u.email&&!b.email) b.email=u.email;
+    });
+    DB._contactos2=true; changed=true;
+  }
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
