@@ -1775,7 +1775,7 @@ function generateRecibo(buyerId,payIdx){
   doc.setDrawColor(...lg);doc.rect(10,y,190,22);
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(...gr);doc.text('Observaciones:',12,y+6);
   doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(20,20,20);
-  doc.text('Lote '+(b.lote||'—')+' adquirido en el proyecto Sierraluna Club Residencial.',12,y+13,{maxWidth:185});
+  doc.text('Lote '+(b.lote||'—')+' adquirido en el proyecto Sierraluna Condominio Campestre.',12,y+13,{maxWidth:185});
 
   // ── Footer ────────────────────────────────────────────────
   y+=28;doc.setDrawColor(...lg);doc.line(10,y,200,y);
@@ -2358,7 +2358,7 @@ function generatePDF(buyerId){
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13);
   doc.text('ESTADO DE CUENTA',W-M,15,{align:'right'});
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-  doc.text('Sierraluna Club Residencial',W-M,21,{align:'right'});
+  doc.text('Sierraluna Group S.A.S.',W-M,21,{align:'right'});
   doc.text(todStr,W-M,27,{align:'right'});
 
   // ── Buyer header ─────────────────────────────────────
