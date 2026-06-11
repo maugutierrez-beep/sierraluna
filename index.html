@@ -1114,6 +1114,33 @@ function migrate(){
       plan:[{"date":"2026-01-23","amount":25000000,"label":"Separación 5%"},{"date":"2026-03-23","amount":75000000,"label":"Cuota inicial 15%"},{"date":"2026-04-23","amount":12121212,"label":"Cuota 1 · abr-26"},{"date":"2026-05-23","amount":12121212,"label":"Cuota 2 · may-26"},{"date":"2026-06-23","amount":12121212,"label":"Cuota 3 · jun-26"},{"date":"2026-07-23","amount":12121212,"label":"Cuota 4 · jul-26"},{"date":"2026-08-23","amount":12121212,"label":"Cuota 5 · ago-26"},{"date":"2026-09-23","amount":12121212,"label":"Cuota 6 · sep-26"},{"date":"2026-10-23","amount":12121212,"label":"Cuota 7 · oct-26"},{"date":"2026-11-23","amount":12121212,"label":"Cuota 8 · nov-26"},{"date":"2026-12-23","amount":12121212,"label":"Cuota 9 · dic-26"},{"date":"2027-01-23","amount":12121212,"label":"Cuota 10 · ene-27"},{"date":"2027-02-23","amount":12121212,"label":"Cuota 11 · feb-27"},{"date":"2027-03-23","amount":12121212,"label":"Cuota 12 · mar-27"},{"date":"2027-04-23","amount":12121212,"label":"Cuota 13 · abr-27"},{"date":"2027-05-23","amount":12121212,"label":"Cuota 14 · may-27"},{"date":"2027-06-23","amount":12121212,"label":"Cuota 15 · jun-27"},{"date":"2027-07-23","amount":12121212,"label":"Cuota 16 · jul-27"},{"date":"2027-08-23","amount":12121212,"label":"Cuota 17 · ago-27"},{"date":"2027-09-23","amount":12121212,"label":"Cuota 18 · sep-27"},{"date":"2027-10-23","amount":12121212,"label":"Cuota 19 · oct-27"},{"date":"2027-11-23","amount":12121212,"label":"Cuota 20 · nov-27"},{"date":"2027-12-23","amount":12121212,"label":"Cuota 21 · dic-27"},{"date":"2028-01-23","amount":12121212,"label":"Cuota 22 · ene-28"},{"date":"2028-02-23","amount":12121212,"label":"Cuota 23 · feb-28"},{"date":"2028-03-23","amount":12121212,"label":"Cuota 24 · mar-28"},{"date":"2028-04-23","amount":12121212,"label":"Cuota 25 · abr-28"},{"date":"2028-05-23","amount":12121212,"label":"Cuota 26 · may-28"},{"date":"2028-06-23","amount":12121212,"label":"Cuota 27 · jun-28"},{"date":"2028-07-23","amount":12121212,"label":"Cuota 28 · jul-28"},{"date":"2028-08-23","amount":12121212,"label":"Cuota 29 · ago-28"},{"date":"2028-09-23","amount":12121212,"label":"Cuota 30 · sep-28"},{"date":"2028-10-23","amount":12121212,"label":"Cuota 31 · oct-28"},{"date":"2028-11-23","amount":12121212,"label":"Cuota 32 · nov-28"},{"date":"2028-12-23","amount":12121212,"label":"Cuota 33 · dic-28"}],payments:[]});
     DB._promesasDrive1=true; changed=true;
   }
+  // Correcciones: negocios no cerrados + PROINCO + plan Samir
+  if(!DB._promesasFix2){
+    // 1. Eliminar negocios NO cerrados (confirmado por Mauricio)
+    const _drop=['V044','V046','V042','V037'];
+    DB.buyers=DB.buyers.filter(b=>!( _drop.includes(b.code) && (b.payments||[]).length===0 ));
+    // 2. V032 Laura Sierra → escritura a nombre de PROINCO GS S.A.S.
+    const _ls=DB.buyers.find(b=>b.code==='V032');
+    if(_ls){
+      _ls.name='PROINCO GS S.A.S. (Laura Sierra)';
+      _ls.nit='901076135-0';
+      _ls.dir='Calle 52A 50-46, Piso 11, Medellín, Antioquia';
+      _ls.tel=_ls.tel||'3187500933';
+      _ls.email=_ls.email||'proincogs@gmail.com';
+    }
+    // 3. V043 Samir: plan según promesa (firmada 5-may-2026)
+    const _sa=DB.buyers.find(b=>b.code==='V043');
+    if(_sa){
+      _sa.plan=[
+        {date:'2026-05-05',amount:10000000,label:'Pago inicial'},
+        {date:'2026-07-15',amount:290000000,label:'Pago final (saldo)'}
+      ];
+      _sa.tel=_sa.tel||'3208586257';
+      _sa.pm2=240000; _sa.tam=_sa.tam||1250;
+      if(!_sa.iso){_sa.iso='2026-05-05';_sa.fecha='may-26';}
+    }
+    DB._promesasFix2=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
