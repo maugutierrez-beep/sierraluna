@@ -1050,6 +1050,27 @@ function migrate(){
     offG.forEach(g=>{if(!DB.gastos.find(x=>x.cat===g.cat))DB.gastos.push(g);});
     DB._spendeeOffline=true; changed=true;
   }
+  // Add V044 Ángel Mendoza (promesa 11 jun 2026)
+  if(!DB._v044Mendoza){
+    if(!DB.buyers.find(b=>b.code==='V044')){
+      DB.buyers.push({
+        id:'V044_'+Math.random().toString(36).slice(2,7),
+        code:'V044',
+        name:'Ángel Vicente Mendoza Montesino',
+        nit:'77.094.557',
+        tel:'3005976461',
+        dir:'Calle 7D No. 14A-39, Apto. 705, Edificio Ankara Living, Valledupar',
+        lote:'2 lotes E2 · Por seleccionar',
+        fecha:'jun-26', iso:'2026-06-11',
+        total:826000000, tam:2500, pm2:330400,
+        fin:'Financiado', prom:'SI', vend:'', com:0,
+        stage:2,
+        plan:[{"date":"2026-06-11","amount":250000000,"label":"Pago inicial (firma)"},{"date":"2026-07-05","amount":32000000,"label":"Cuota 1 · jul-26"},{"date":"2026-08-05","amount":32000000,"label":"Cuota 2 · ago-26"},{"date":"2026-09-05","amount":32000000,"label":"Cuota 3 · sep-26"},{"date":"2026-10-05","amount":32000000,"label":"Cuota 4 · oct-26"},{"date":"2026-11-05","amount":32000000,"label":"Cuota 5 · nov-26"},{"date":"2026-12-05","amount":32000000,"label":"Cuota 6 · dic-26"},{"date":"2027-01-05","amount":32000000,"label":"Cuota 7 · ene-27"},{"date":"2027-02-05","amount":32000000,"label":"Cuota 8 · feb-27"},{"date":"2027-03-05","amount":32000000,"label":"Cuota 9 · mar-27"},{"date":"2027-04-05","amount":32000000,"label":"Cuota 10 · abr-27"},{"date":"2027-05-05","amount":32000000,"label":"Cuota 11 · may-27"},{"date":"2027-06-05","amount":32000000,"label":"Cuota 12 · jun-27"},{"date":"2027-07-05","amount":32000000,"label":"Cuota 13 · jul-27"},{"date":"2027-08-05","amount":32000000,"label":"Cuota 14 · ago-27"},{"date":"2027-09-05","amount":32000000,"label":"Cuota 15 · sep-27"},{"date":"2027-10-05","amount":32000000,"label":"Cuota 16 · oct-27"},{"date":"2027-11-05","amount":32000000,"label":"Cuota 17 · nov-27"},{"date":"2027-12-05","amount":32000000,"label":"Cuota 18 · dic-27"}],
+        payments:[]
+      });
+    }
+    DB._v044Mendoza=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
