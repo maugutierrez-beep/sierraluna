@@ -1071,6 +1071,49 @@ function migrate(){
     }
     DB._v044Mendoza=true; changed=true;
   }
+  // Promesas Drive: renumerar V044→V047 y crear V044/V046/V042/V037
+  if(!DB._promesasDrive1){
+    // 1. Ángel Mendoza es V047 (no V044) según Drive
+    const _am=DB.buyers.find(b=>b.code==='V044'&&b.name.indexOf('Mendoza')>=0);
+    if(_am) _am.code='V047';
+    // 2. V044 Santiago Celedón
+    if(!DB.buyers.find(b=>b.code==='V044')) DB.buyers.push({
+      id:'V044_'+Math.random().toString(36).slice(2,7),code:'V044',
+      name:'Santiago Celedón Daza / Xilena Gnecco',nit:'1.122.404.793',
+      dir:'Cll 1 # 19B-36, Apto 602, Edificio Los Rosales, Valledupar',
+      email:'santiagoceledondaza@hotmail.com',tel:'',
+      lote:'G2',fecha:'may-26',iso:'2026-05-11',total:441000000,tam:1260,pm2:350000,
+      fin:'Financiado',prom:'SI',vend:'',com:0,stage:2,
+      plan:[{"date":"2026-05-12","amount":88200000,"label":"Pago inicial 20%"},{"date":"2026-06-11","amount":14700000,"label":"Cuota 1 · jun-26"},{"date":"2026-07-11","amount":14700000,"label":"Cuota 2 · jul-26"},{"date":"2026-08-11","amount":14700000,"label":"Cuota 3 · ago-26"},{"date":"2026-09-11","amount":14700000,"label":"Cuota 4 · sep-26"},{"date":"2026-10-11","amount":14700000,"label":"Cuota 5 · oct-26"},{"date":"2026-11-11","amount":14700000,"label":"Cuota 6 · nov-26"},{"date":"2026-12-11","amount":14700000,"label":"Cuota 7 · dic-26"},{"date":"2027-01-11","amount":14700000,"label":"Cuota 8 · ene-27"},{"date":"2027-02-11","amount":14700000,"label":"Cuota 9 · feb-27"},{"date":"2027-03-11","amount":14700000,"label":"Cuota 10 · mar-27"},{"date":"2027-04-11","amount":14700000,"label":"Cuota 11 · abr-27"},{"date":"2027-05-11","amount":14700000,"label":"Cuota 12 · may-27"},{"date":"2027-06-11","amount":14700000,"label":"Cuota 13 · jun-27"},{"date":"2027-07-11","amount":14700000,"label":"Cuota 14 · jul-27"},{"date":"2027-08-11","amount":14700000,"label":"Cuota 15 · ago-27"},{"date":"2027-09-11","amount":14700000,"label":"Cuota 16 · sep-27"},{"date":"2027-10-11","amount":14700000,"label":"Cuota 17 · oct-27"},{"date":"2027-11-11","amount":14700000,"label":"Cuota 18 · nov-27"},{"date":"2027-12-11","amount":14700000,"label":"Cuota 19 · dic-27"},{"date":"2028-01-11","amount":14700000,"label":"Cuota 20 · ene-28"},{"date":"2028-02-11","amount":14700000,"label":"Cuota 21 · feb-28"},{"date":"2028-03-11","amount":14700000,"label":"Cuota 22 · mar-28"},{"date":"2028-04-11","amount":14700000,"label":"Cuota 23 · abr-28"},{"date":"2028-05-11","amount":14700000,"label":"Cuota 24 · may-28"}],payments:[]});
+    // 3. V046 Nalleth Bolaño — Lote A5 Etapa 1
+    if(!DB.buyers.find(b=>b.code==='V046')) DB.buyers.push({
+      id:'V046_'+Math.random().toString(36).slice(2,7),code:'V046',
+      name:'Nalleth Danieyis Bolaño Ardila',nit:'40.878.837',
+      dir:'Manzana B, Casa 16, Conjunto Las Margaritas, Valledupar',
+      email:'nayethbolano@unicesar.edu.co',tel:'',
+      lote:'A5',fecha:'may-26',iso:'2026-05-22',total:360000000,tam:1250,pm2:288000,
+      fin:'De Contado',prom:'SI',vend:'',com:0,stage:1,
+      plan:[{"date":"2026-05-22","amount":10000000,"label":"Pago inicial (firma)"},{"date":"2026-06-30","amount":350000000,"label":"Saldo total"}],payments:[]});
+    // 4. V042 Harry Fábregas
+    if(!DB.buyers.find(b=>b.code==='V042')) DB.buyers.push({
+      id:'V042_'+Math.random().toString(36).slice(2,7),code:'V042',
+      name:'Harry Mitshell Fábregas Martínez',nit:'1.193.524.578',
+      dir:'Rosario Real Manzana D Casa 2, Valledupar',
+      email:'karysmartinez8@gmail.com',tel:'',
+      lote:'E2 · Por definir',fecha:'abr-26',iso:'2026-04-20',total:490000000,tam:1250,pm2:392000,
+      fin:'Financiado',prom:'SI',vend:'',com:0,stage:2,
+      plan:[{"date":"2026-04-20","amount":5000000,"label":"Pago inicial (firma)"},{"date":"2026-05-20","amount":45000000,"label":"Segundo pago"},{"date":"2026-06-20","amount":15000000,"label":"Cuota 1 · jun-26"},{"date":"2026-07-20","amount":15000000,"label":"Cuota 2 · jul-26"},{"date":"2026-08-20","amount":15000000,"label":"Cuota 3 · ago-26"},{"date":"2026-09-20","amount":15000000,"label":"Cuota 4 · sep-26"},{"date":"2026-10-20","amount":15000000,"label":"Cuota 5 · oct-26"},{"date":"2026-11-20","amount":15000000,"label":"Cuota 6 · nov-26"},{"date":"2026-12-20","amount":15000000,"label":"Cuota 7 · dic-26"},{"date":"2027-01-20","amount":15000000,"label":"Cuota 8 · ene-27"},{"date":"2027-02-20","amount":15000000,"label":"Cuota 9 · feb-27"},{"date":"2027-03-20","amount":15000000,"label":"Cuota 10 · mar-27"},{"date":"2027-04-20","amount":15000000,"label":"Cuota 11 · abr-27"},{"date":"2027-05-20","amount":15000000,"label":"Cuota 12 · may-27"},{"date":"2027-06-20","amount":15000000,"label":"Cuota 13 · jun-27"},{"date":"2027-07-20","amount":15000000,"label":"Cuota 14 · jul-27"},{"date":"2027-08-20","amount":15000000,"label":"Cuota 15 · ago-27"},{"date":"2027-09-20","amount":15000000,"label":"Cuota 16 · sep-27"},{"date":"2027-10-20","amount":15000000,"label":"Cuota 17 · oct-27"},{"date":"2027-11-20","amount":15000000,"label":"Cuota 18 · nov-27"},{"date":"2027-12-20","amount":15000000,"label":"Cuota 19 · dic-27"},{"date":"2028-01-20","amount":15000000,"label":"Cuota 20 · ene-28"},{"date":"2028-02-20","amount":15000000,"label":"Cuota 21 · feb-28"},{"date":"2028-03-20","amount":15000000,"label":"Cuota 22 · mar-28"},{"date":"2028-04-20","amount":15000000,"label":"Cuota 23 · abr-28"},{"date":"2028-05-20","amount":15000000,"label":"Cuota 24 · may-28"},{"date":"2028-06-30","amount":80000000,"label":"Saldo final"}],payments:[]});
+    // 5. V037 Erika Arzuaga
+    if(!DB.buyers.find(b=>b.code==='V037')) DB.buyers.push({
+      id:'V037_'+Math.random().toString(36).slice(2,7),code:'V037',
+      name:'Erika Arzuaga Ochoa',nit:'49.785.224',
+      dir:'Carrera 19 No. 2-101, Conjunto Residencial del Norte, Valledupar',
+      email:'erika_arzuaga@hotmail.com',tel:'3147785556',
+      lote:'E2 · Por definir',fecha:'ene-26',iso:'2026-01-21',total:500000000,tam:1250,pm2:400000,
+      fin:'Financiado',prom:'SI',vend:'',com:0,stage:2,
+      plan:[{"date":"2026-01-23","amount":25000000,"label":"Separación 5%"},{"date":"2026-03-23","amount":75000000,"label":"Cuota inicial 15%"},{"date":"2026-04-23","amount":12121212,"label":"Cuota 1 · abr-26"},{"date":"2026-05-23","amount":12121212,"label":"Cuota 2 · may-26"},{"date":"2026-06-23","amount":12121212,"label":"Cuota 3 · jun-26"},{"date":"2026-07-23","amount":12121212,"label":"Cuota 4 · jul-26"},{"date":"2026-08-23","amount":12121212,"label":"Cuota 5 · ago-26"},{"date":"2026-09-23","amount":12121212,"label":"Cuota 6 · sep-26"},{"date":"2026-10-23","amount":12121212,"label":"Cuota 7 · oct-26"},{"date":"2026-11-23","amount":12121212,"label":"Cuota 8 · nov-26"},{"date":"2026-12-23","amount":12121212,"label":"Cuota 9 · dic-26"},{"date":"2027-01-23","amount":12121212,"label":"Cuota 10 · ene-27"},{"date":"2027-02-23","amount":12121212,"label":"Cuota 11 · feb-27"},{"date":"2027-03-23","amount":12121212,"label":"Cuota 12 · mar-27"},{"date":"2027-04-23","amount":12121212,"label":"Cuota 13 · abr-27"},{"date":"2027-05-23","amount":12121212,"label":"Cuota 14 · may-27"},{"date":"2027-06-23","amount":12121212,"label":"Cuota 15 · jun-27"},{"date":"2027-07-23","amount":12121212,"label":"Cuota 16 · jul-27"},{"date":"2027-08-23","amount":12121212,"label":"Cuota 17 · ago-27"},{"date":"2027-09-23","amount":12121212,"label":"Cuota 18 · sep-27"},{"date":"2027-10-23","amount":12121212,"label":"Cuota 19 · oct-27"},{"date":"2027-11-23","amount":12121212,"label":"Cuota 20 · nov-27"},{"date":"2027-12-23","amount":12121212,"label":"Cuota 21 · dic-27"},{"date":"2028-01-23","amount":12121212,"label":"Cuota 22 · ene-28"},{"date":"2028-02-23","amount":12121212,"label":"Cuota 23 · feb-28"},{"date":"2028-03-23","amount":12121212,"label":"Cuota 24 · mar-28"},{"date":"2028-04-23","amount":12121212,"label":"Cuota 25 · abr-28"},{"date":"2028-05-23","amount":12121212,"label":"Cuota 26 · may-28"},{"date":"2028-06-23","amount":12121212,"label":"Cuota 27 · jun-28"},{"date":"2028-07-23","amount":12121212,"label":"Cuota 28 · jul-28"},{"date":"2028-08-23","amount":12121212,"label":"Cuota 29 · ago-28"},{"date":"2028-09-23","amount":12121212,"label":"Cuota 30 · sep-28"},{"date":"2028-10-23","amount":12121212,"label":"Cuota 31 · oct-28"},{"date":"2028-11-23","amount":12121212,"label":"Cuota 32 · nov-28"},{"date":"2028-12-23","amount":12121212,"label":"Cuota 33 · dic-28"}],payments:[]});
+    DB._promesasDrive1=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
