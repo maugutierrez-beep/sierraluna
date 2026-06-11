@@ -1141,6 +1141,12 @@ function migrate(){
     }
     DB._promesasFix2=true; changed=true;
   }
+  // Enlaces a carpetas de promesas en Google Drive
+  if(!DB._promesaLinks){
+    const _pf={"V001":"1Wi1DGWRIal57q_s6uCQEP-MTY_yGh-aT","V002":"1qCjT6hKJh7nV9U_py2SJI_zf574QfWb9","V003":"1lKoBKDgquUiVfTBsTi6KzrMsQe4u_2Z7","V004":"1oIJbmZ8kkmww-PafYBf5ciktozKo9PXp","V005":"1V8Dj8Kflay3VGWq9oJVzrvf7gH52yt3R","V006":"1c7S6s38V-1miLwa9zmTBmdPUj0DNl_qh","V007":"1ZHRzIYrmXvuMdWim1AvcJ2MF3xL4nQ29","V008":"1hMikK_M1uP6VPUfFmwVUbmzoCJuyTj0k","V009":"1DnF65tEcHoRVahbPiDG-ODydPcFY2Ceh","V010":"1zkIhTonjkCb3ZPd_QbrEGSePmHFjDEjd","V011":"1guYASJrSTEfp5v49IqNlA5hKb1OFphTo","V012":"1a3pctBp5D0s9wU8KX4aCVfVWgUNoCeaF","V013":"1fXMZ4xrVLA_crumJ-F3XzBiJDgHxDZwH","V014":"1pqSSkgu9lF-UBeR4Oh_eLzKTOif1klvb","V015":"16BsTgTHfEY-9jBMCPiGnfEOGyTguJ4m4","V016":"1D-xTsfThN99NL-hyO_5rLhWD4V4cDxHT","V017":"1n871tLmnNQz3JQB9o0xswxCj2dPO5pmN","V018":"164L1AQKBvWJqJtS3HSqLf9PP-WwLNKQ1","V020":"1BJ7UnZlP3wi4rKRrcwMMpqf6bC5EyDft","V022":"1RBX41Pvy8LFenj6dFbgO4QReXGx5xPzU","V023":"1irzACeo8m_CUoiQykrrSy3Tyq9LAdUd8","V024":"1TE7tyklOrS1Usbb2atFkoR53pvSs_5rk","V025":"15u-5pE0xvd0tuwFLDNqVxSHFpeP6Y6WV","V026":"13yt3YB844Zlb5mmye5AZQAh9q5d6bCyz","V027":"1VjdOwKdKVjoMqeEkDXEZx8sDXkDOaMuO","V028":"1PIpj4GiAZkze2t5b9gTb9tIE7XnZ8wdI","V029":"1aHYbviOHzv7fwmJulN6N7fmnUhCSwU-j","V030":"1D951TprAcAfN-eN_YF0beVt4qTnJS5P0","V031":"1PMauIvK1qrGmuJWZDzb4FVaThZkTaexS","V032":"1Aj4LBMfDFmS4S1_rr8urrp1zQIgxP4UP","V033":"1E7cUYsepusw5Ao_a1mD-u5IdeMj6eKum","V034":"18Su-lRnfr7e79OKJP9TsqVeDdrTt3cFh","V035":"10w-04byS9l4hRnxp-K8KR_HKiwWcc0wH","V036":"1olYw2OQSkvjoQt-NH0CdFx7m4RG4PXal","V038":"1hs5aO-hSzvv-mIdQ7ZSU5vgakUyHgR8K","V039":"19-Y0VpHau_bqRWVuaVymIyDNns_GJoxO","V040":"1db8R6qWrzbpsa8i5SzCmNWYZEC7h4lyT","V041":"1xpt5N-KKZQ_tUzI2GMxHWSJvuanHzKrV","V043":"1vuFZ_urcsYXdV3vvNJ4stqkX8PjFzJC2","V047":"12cqYGlS1iad6SoqTLOGt_yHJyyf9xXW2"};
+    DB.buyers.forEach(b=>{ if(_pf[b.code]) b.promesaUrl='https://drive.google.com/drive/folders/'+_pf[b.code]; });
+    DB._promesaLinks=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
@@ -1259,6 +1265,7 @@ function render(){
       <td>${b.prom?`<span class="pill ${promClass(b.prom)}">${esc(b.prom)}</span>`:"—"}</td>
       <td>${esc(b.vend)||"—"}</td>
       <td class="tbl-last"><div class="rowbtns">
+        ${b.promesaUrl?`<a href="${b.promesaUrl}" target="_blank" class="ie" title="Ver promesa en Drive" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">📄</a>`:''}
         ${waBtn}
         <button class="ib" title="Registrar abono" onclick="openPayment('${b.id}')">＄</button>
         <button class="ie" title="Editar" onclick="openBuyer('${b.id}')">✎</button>
