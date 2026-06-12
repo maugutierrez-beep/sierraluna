@@ -1147,6 +1147,19 @@ function migrate(){
     DB.buyers.forEach(b=>{ if(_pf[b.code]) b.promesaUrl='https://drive.google.com/drive/folders/'+_pf[b.code]; });
     DB._promesaLinks=true; changed=true;
   }
+  // V047: promesa final firmada a nombre de AVM Servicios Marítimos S.A.S.
+  if(!DB._v047AVM){
+    const _v=DB.buyers.find(b=>b.code==='V047');
+    if(_v){
+      _v.name='AVM Servicios Marítimos S.A.S. (Ángel Mendoza)';
+      _v.nit='901912415-5';
+      _v.dir='Carrera 2 No. 3-25, Oficina 1104, Edificio Vista Mar, Buenaventura, Valle del Cauca';
+      _v.email='capitanangelmendoza@gmail.com';
+      _v.tel='3005976461';
+      _v.plan=[{"date":"2026-06-11","amount":250000000,"label":"Pago inicial (firma)"},{"date":"2026-07-15","amount":32000000,"label":"Cuota 1 · jul-26"},{"date":"2026-08-15","amount":32000000,"label":"Cuota 2 · ago-26"},{"date":"2026-09-15","amount":32000000,"label":"Cuota 3 · sep-26"},{"date":"2026-10-15","amount":32000000,"label":"Cuota 4 · oct-26"},{"date":"2026-11-15","amount":32000000,"label":"Cuota 5 · nov-26"},{"date":"2026-12-15","amount":32000000,"label":"Cuota 6 · dic-26"},{"date":"2027-01-15","amount":32000000,"label":"Cuota 7 · ene-27"},{"date":"2027-02-15","amount":32000000,"label":"Cuota 8 · feb-27"},{"date":"2027-03-15","amount":32000000,"label":"Cuota 9 · mar-27"},{"date":"2027-04-15","amount":32000000,"label":"Cuota 10 · abr-27"},{"date":"2027-05-15","amount":32000000,"label":"Cuota 11 · may-27"},{"date":"2027-06-15","amount":32000000,"label":"Cuota 12 · jun-27"},{"date":"2027-07-15","amount":32000000,"label":"Cuota 13 · jul-27"},{"date":"2027-08-15","amount":32000000,"label":"Cuota 14 · ago-27"},{"date":"2027-09-15","amount":32000000,"label":"Cuota 15 · sep-27"},{"date":"2027-10-15","amount":32000000,"label":"Cuota 16 · oct-27"},{"date":"2027-11-15","amount":32000000,"label":"Cuota 17 · nov-27"},{"date":"2027-12-15","amount":32000000,"label":"Cuota 18 · dic-27"}];
+    }
+    DB._v047AVM=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
