@@ -1170,6 +1170,18 @@ function migrate(){
     _set('V015',b=>{b.plan=[{"date":"2025-04-24","amount":18125000,"label":"Pago 1 · 5%"},{"date":"2025-07-24","amount":54375000,"label":"Pago 2 · 15%"},{"date":"2025-08-05","amount":12083333,"label":"Cuota 1 · ago-25"},{"date":"2025-09-05","amount":12083333,"label":"Cuota 2 · sep-25"},{"date":"2025-10-05","amount":12083333,"label":"Cuota 3 · oct-25"},{"date":"2025-11-05","amount":12083333,"label":"Cuota 4 · nov-25"},{"date":"2025-12-05","amount":12083333,"label":"Cuota 5 · dic-25"},{"date":"2026-01-05","amount":12083333,"label":"Cuota 6 · ene-26"},{"date":"2026-02-05","amount":12083333,"label":"Cuota 7 · feb-26"},{"date":"2026-03-05","amount":12083333,"label":"Cuota 8 · mar-26"},{"date":"2026-04-05","amount":12083333,"label":"Cuota 9 · abr-26"},{"date":"2026-05-05","amount":12083333,"label":"Cuota 10 · may-26"},{"date":"2026-06-05","amount":12083333,"label":"Cuota 11 · jun-26"},{"date":"2026-07-05","amount":12083333,"label":"Cuota 12 · jul-26"},{"date":"2026-08-05","amount":12083333,"label":"Cuota 13 · ago-26"},{"date":"2026-09-05","amount":12083333,"label":"Cuota 14 · sep-26"},{"date":"2026-10-05","amount":12083333,"label":"Cuota 15 · oct-26"},{"date":"2026-11-05","amount":12083333,"label":"Cuota 16 · nov-26"},{"date":"2026-12-05","amount":12083333,"label":"Cuota 17 · dic-26"},{"date":"2027-01-05","amount":12083333,"label":"Cuota 18 · ene-27"},{"date":"2027-02-05","amount":12083333,"label":"Cuota 19 · feb-27"},{"date":"2027-03-05","amount":12083333,"label":"Cuota 20 · mar-27"},{"date":"2027-04-05","amount":12083333,"label":"Cuota 21 · abr-27"},{"date":"2027-05-05","amount":12083333,"label":"Cuota 22 · may-27"},{"date":"2027-06-05","amount":12083333,"label":"Cuota 23 · jun-27"},{"date":"2027-07-05","amount":12083341,"label":"Cuota 24 · jul-27"}];b.total=362500000;b.lote='J4';b.tam=1250.25;});
     DB._planesPromesas1=true; changed=true;
   }
+  // Bloque 2 de contraste de promesas
+  if(!DB._planesPromesas2){
+    const _b36=DB.buyers.find(x=>x.code==='V036');
+    if(_b36){
+      _b36.total=412500000;_b36.lote='L11';_b36.tam=1250;_b36.pm2=330000;
+      _b36.plan=[
+        {date:'2026-03-09',amount:100000000,label:'Pago 1 · firma'},
+        {date:'2026-06-05',amount:100000000,label:'Pago 2'}
+      ];
+    }
+    DB._planesPromesas2=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
