@@ -1891,13 +1891,18 @@ function renderMovimientos(){
 function numToWords(n){
   if(n===0)return'cero';
   const u=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
-  const d=['','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const d=['','','veinte','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
   const c=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
   function chunk(x){if(x===100)return'cien';if(x<30)return u[x];if(x<100){const t=Math.floor(x/10),r=x%10;return d[t]+(r?' y '+u[r]:'');}const h=Math.floor(x/100),r=x%100;return c[h]+(r?' '+chunk(r):'');}
   n=Math.abs(Math.round(n));let res='';
-  const mm=Math.floor(n/1e9);if(mm)res+=(mm===1?'mil millones':chunk(mm)+' mil millones')+' ';
-  const mi=Math.floor((n%1e9)/1e6);if(mi)res+=(mi===1?'un millón':chunk(mi)+' millones')+' ';
-  const k=Math.floor((n%1e6)/1e3);if(k)res+=(k===1?'mil':chunk(k)+' mil')+' ';
+  const apoc=s=>s.replace(/veintiuno$/,'veintiún').replace(/uno$/,'un'); // "uno"->"un" antes de millón/mil
+  // Millones completos (incluye miles de millón) agrupados correctamente
+  const millones=Math.floor(n/1e6);
+  if(millones){
+    if(millones===1)res+='un millón ';
+    else res+=numToWords(millones).replace(/veintiuno$/,'veintiún').replace(/uno$/,'un')+' millones ';
+  }
+  const k=Math.floor((n%1e6)/1e3);if(k)res+=(k===1?'mil':apoc(chunk(k))+' mil')+' ';
   const r=n%1e3;if(r)res+=chunk(r)+' ';
   return res.trim();
 }
