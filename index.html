@@ -166,6 +166,21 @@
   .inv-summary .s.acc b{color:var(--coral)}
   .inv-legend{display:flex;gap:16px;align-items:center;margin-left:auto;font-size:11px;color:var(--ink-soft);font-weight:500}
   .inv-legend span i{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:6px}
+  .plano-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;padding:18px}
+  .plano-mz{border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:#fff}
+  .plano-mz-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+  .plano-mz-name{font-size:12.5px;font-weight:700;color:var(--navy);letter-spacing:.01em}
+  .plano-mz-pct{font-size:11px;font-weight:700;color:var(--ink-soft)}
+  .plano-cells{display:flex;flex-wrap:wrap;gap:4px}
+  .pcell{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:5px;font-size:10.5px;font-weight:700;cursor:default;user-select:none}
+  .pcell.sold{background:var(--navy);color:#fff}
+  .pcell.avail{background:#fff;color:var(--coral);border:1.5px dashed var(--coral)}
+  .pcell.unk{background:#eef1f4;color:#9aa7b4;border:1px solid var(--line-soft)}
+  .plano-legend{display:flex;gap:18px;align-items:center;padding:0 18px 18px;font-size:11.5px;color:var(--ink-soft);font-weight:500}
+  .plano-legend i.pl{display:inline-block;width:15px;height:15px;border-radius:4px;vertical-align:-3px;margin-right:6px}
+  .plano-legend i.pl.sold{background:var(--navy)}
+  .plano-legend i.pl.avail{background:#fff;border:1.5px dashed var(--coral)}
+  .plano-legend i.pl.unk{background:#eef1f4;border:1px solid var(--line-soft)}
   .manz{padding:14px 18px;border-bottom:1px solid var(--line-soft)}
   .manz:last-child{border-bottom:none}
   .manz-h{display:flex;align-items:center;gap:12px;margin-bottom:11px}
@@ -472,6 +487,14 @@
     </div>
     <div id="gastos_body"></div>
     <div id="utilidad_cards" style="margin-top:20px"></div>
+  </div>
+
+  <!-- Plano general / mapa de absorción -->
+  <div class="panel" data-section="inventario">
+    <div class="panel-h">
+      <div><h2>Plano general · absorción por manzana</h2><div class="desc">Parcelación "Villa Claudia" (Curaduría Urbana 2, dic-2024) sobre el Lote 1 del predio · 68 ha. Cada celda es un lote; el color indica su estado.</div></div>
+    </div>
+    <div id="planomap"></div>
   </div>
 
   <!-- Lot inventory -->
@@ -1582,6 +1605,47 @@ function soldMap(){
 function renderInventory(){
   renderInventoryInto(1, DB.availLots||[], "invsummary","invbody");
   renderInventoryInto(2, DB.availLots2||[], "invsummary2","invbody2");
+  renderPlanoMap();
+}
+// Mapa visual de absorción por manzana (todas las manzanas del plano, ordenadas)
+function renderPlanoMap(){
+  const el=document.getElementById("planomap"); if(!el) return;
+  const sm=soldMap();
+  const availSet=new Set([...(DB.availLots||[]),...(DB.availLots2||[])].map(c=>c.toUpperCase()));
+  // Construir universo de lotes: los de LOT_AREA + vendidos + disponibles
+  const all=new Set([...Object.keys(LOT_AREA),...Object.keys(sm),...availSet]);
+  const groups={};
+  all.forEach(code=>{
+    const man=manzanaOf(code);
+    (groups[man]=groups[man]||[]).push(code);
+  });
+  // Orden de manzanas: primero las conocidas, luego alfabético
+  const known=["A","E","H","I","J","K","L","X","Y"];
+  const order=[...known.filter(m=>groups[m]),...Object.keys(groups).filter(m=>!known.includes(m)).sort()];
+  let html='<div class="plano-grid">';
+  order.forEach(man=>{
+    const lots=groups[man].sort((a,b)=>(parseInt(a.replace(/^[A-Z]+/,''))||0)-(parseInt(b.replace(/^[A-Z]+/,''))||0));
+    const sold=lots.filter(c=>sm[c]).length;
+    const tot=lots.length;
+    const pct=tot?Math.round(sold/tot*100):0;
+    html+=`<div class="plano-mz"><div class="plano-mz-h"><span class="plano-mz-name">Manzana ${man}</span><span class="plano-mz-pct">${pct}%</span></div><div class="plano-cells">`;
+    lots.forEach(code=>{
+      const num=code.replace(/^[A-Z]+/,'');
+      if(sm[code]){
+        const nm=esc(sm[code].name||'');
+        html+=`<span class="pcell sold" title="${code} · ${nm} · Vendido">${num}</span>`;
+      } else if(availSet.has(code)){
+        html+=`<span class="pcell avail" title="${code} · Disponible">${num}</span>`;
+      } else {
+        html+=`<span class="pcell unk" title="${code} · Por confirmar">${num}</span>`;
+      }
+    });
+    html+='</div></div>';
+  });
+  html+='</div>';
+  // Leyenda
+  html+='<div class="plano-legend"><span><i class="pl sold"></i>Vendido</span><span><i class="pl avail"></i>Disponible</span><span><i class="pl unk"></i>Por confirmar</span></div>';
+  el.innerHTML=html;
 }
 function renderInventoryInto(stage, availArr, sumId, bodyId){
   const sm=soldMap();
