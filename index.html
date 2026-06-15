@@ -181,6 +181,21 @@
   .plano-legend i.pl.sold{background:var(--navy)}
   .plano-legend i.pl.avail{background:#fff;border:1.5px dashed var(--coral)}
   .plano-legend i.pl.unk{background:#eef1f4;border:1px solid var(--line-soft)}
+  .plano-bar{display:flex;gap:24px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:#fafbfc}
+  .plano-bar .s{font-size:11px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .plano-bar .s b{display:block;font-size:18px;color:var(--navy);font-weight:700;margin-top:3px;letter-spacing:-.01em}
+  .plano-bar .s.acc b{color:var(--coral)}
+  .plano-hint{margin-left:auto;font-size:11.5px;color:var(--ink-soft);font-style:italic}
+  .pcell{cursor:pointer;transition:transform .08s}
+  .pcell:hover{transform:scale(1.12)}
+  .pcell.sold:hover{background:#22416a}
+  .lotdet-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+  .lotdet-row:last-child{border-bottom:none}
+  .lotdet-row span{color:var(--ink-soft);font-weight:500}
+  .lotdet-row b{color:var(--navy);font-weight:700;text-align:right}
+  .lotdet-row b.price{color:var(--coral);font-size:16px}
+  .st.avail{background:#fff;color:var(--coral);border:1.5px dashed var(--coral);padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .st.unk{background:#eef1f4;color:#7a8794;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
   .manz{padding:14px 18px;border-bottom:1px solid var(--line-soft)}
   .manz:last-child{border-bottom:none}
   .manz-h{display:flex;align-items:center;gap:12px;margin-bottom:11px}
@@ -529,6 +544,14 @@
   <p class="footnote" data-section="finanzas">
     Los datos se almacenan localmente en tu navegador (privados, solo para ti) y se conservan entre sesiones. «Recibido (cartera)» reproduce el RESUMEN ONLINE; el consolidado suma los recaudos offline. Usa «Exportar CSV» para respaldos.
   </p>
+</div>
+
+<!-- Lot detail modal -->
+<div class="overlay" id="ov_lotdet">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-h"><h3 id="lotdet_title">Lote</h3><button class="close" onclick="document.getElementById('ov_lotdet').classList.remove('on')">×</button></div>
+    <div class="modal-b"><div class="lotdet" id="lotdet_body"></div></div>
+  </div>
 </div>
 
 <!-- Plan de pagos modal -->
@@ -1607,45 +1630,67 @@ function renderInventory(){
   renderInventoryInto(2, DB.availLots2||[], "invsummary2","invbody2");
   renderPlanoMap();
 }
-// Mapa visual de absorción por manzana (todas las manzanas del plano, ordenadas)
+// Precio por m² para lotes disponibles (referencia comercial)
+const PM2_DISPONIBLE=410000;
+// Mapa visual interactivo de absorción por manzana con precios
 function renderPlanoMap(){
   const el=document.getElementById("planomap"); if(!el) return;
   const sm=soldMap();
   const availSet=new Set([...(DB.availLots||[]),...(DB.availLots2||[])].map(c=>c.toUpperCase()));
-  // Construir universo de lotes: los de LOT_AREA + vendidos + disponibles
   const all=new Set([...Object.keys(LOT_AREA),...Object.keys(sm),...availSet]);
   const groups={};
-  all.forEach(code=>{
-    const man=manzanaOf(code);
-    (groups[man]=groups[man]||[]).push(code);
-  });
-  // Orden de manzanas: primero las conocidas, luego alfabético
+  all.forEach(code=>{const man=manzanaOf(code);(groups[man]=groups[man]||[]).push(code);});
   const known=["A","E","H","I","J","K","L","X","Y"];
   const order=[...known.filter(m=>groups[m]),...Object.keys(groups).filter(m=>!known.includes(m)).sort()];
-  let html='<div class="plano-grid">';
+  // Resumen de disponibles
+  let availArea=0, availCount=0;
+  availSet.forEach(c=>{ if(!sm[c]){availArea+=lotArea(c); availCount++;} });
+  let html=`<div class="plano-bar"><div class="s">Inventario disponible<b>${availCount} lotes</b></div><div class="s">Área disponible<b>${NUM.format(Math.round(availArea))} m²</b></div><div class="s acc">Valor a $${NUM.format(PM2_DISPONIBLE)}/m²<b>$${NUM.format(Math.round(availArea*PM2_DISPONIBLE))}</b></div><div class="plano-hint">Toca cualquier lote para ver su detalle</div></div>`;
+  html+='<div class="plano-grid">';
   order.forEach(man=>{
     const lots=groups[man].sort((a,b)=>(parseInt(a.replace(/^[A-Z]+/,''))||0)-(parseInt(b.replace(/^[A-Z]+/,''))||0));
-    const sold=lots.filter(c=>sm[c]).length;
-    const tot=lots.length;
+    const sold=lots.filter(c=>sm[c]).length, tot=lots.length;
     const pct=tot?Math.round(sold/tot*100):0;
     html+=`<div class="plano-mz"><div class="plano-mz-h"><span class="plano-mz-name">Manzana ${man}</span><span class="plano-mz-pct">${pct}%</span></div><div class="plano-cells">`;
     lots.forEach(code=>{
       const num=code.replace(/^[A-Z]+/,'');
-      if(sm[code]){
-        const nm=esc(sm[code].name||'');
-        html+=`<span class="pcell sold" title="${code} · ${nm} · Vendido">${num}</span>`;
-      } else if(availSet.has(code)){
-        html+=`<span class="pcell avail" title="${code} · Disponible">${num}</span>`;
-      } else {
-        html+=`<span class="pcell unk" title="${code} · Por confirmar">${num}</span>`;
-      }
+      const cls=sm[code]?"sold":(availSet.has(code)?"avail":"unk");
+      html+=`<span class="pcell ${cls}" onclick="showLotDetail('${code}')">${num}</span>`;
     });
     html+='</div></div>';
   });
   html+='</div>';
-  // Leyenda
   html+='<div class="plano-legend"><span><i class="pl sold"></i>Vendido</span><span><i class="pl avail"></i>Disponible</span><span><i class="pl unk"></i>Por confirmar</span></div>';
   el.innerHTML=html;
+}
+function showLotDetail(code){
+  code=code.toUpperCase();
+  const sm=soldMap();
+  const area=lotArea(code);
+  const availSet=new Set([...(DB.availLots||[]),...(DB.availLots2||[])].map(c=>c.toUpperCase()));
+  const man=manzanaOf(code);
+  let estado, estadoCls, extra="";
+  if(sm[code]){
+    estado="Vendido"; estadoCls="sold";
+    const b=sm[code];
+    extra=`<div class="lotdet-row"><span>Comprador</span><b>${esc(b.name||'—')}</b></div>
+           <div class="lotdet-row"><span>Código</span><b>${esc(b.code||'—')}</b></div>
+           ${b.total?`<div class="lotdet-row"><span>Valor de venta</span><b>$${NUM.format(b.total)}</b></div>`:""}`;
+  } else if(availSet.has(code)){
+    estado="Disponible"; estadoCls="avail";
+    const precio=area*PM2_DISPONIBLE;
+    extra=`<div class="lotdet-row"><span>Precio ref. ($${NUM.format(PM2_DISPONIBLE)}/m²)</span><b class="price">$${NUM.format(Math.round(precio))}</b></div>`;
+  } else {
+    estado="Por confirmar"; estadoCls="unk";
+    if(area){const precio=area*PM2_DISPONIBLE; extra=`<div class="lotdet-row"><span>Precio ref. estimado</span><b class="price">$${NUM.format(Math.round(precio))}</b></div>`;}
+  }
+  const body=`<div class="lotdet-row"><span>Manzana</span><b>${man}</b></div>
+    <div class="lotdet-row"><span>Área</span><b>${area?fmtM2(area):"Por confirmar"}</b></div>
+    <div class="lotdet-row"><span>Estado</span><b><span class="st ${estadoCls}">${estado}</span></b></div>
+    ${extra}`;
+  document.getElementById("lotdet_title").textContent="Lote "+code;
+  document.getElementById("lotdet_body").innerHTML=body;
+  document.getElementById("ov_lotdet").classList.add("on");
 }
 function renderInventoryInto(stage, availArr, sumId, bodyId){
   const sm=soldMap();
