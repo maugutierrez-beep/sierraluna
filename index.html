@@ -181,8 +181,7 @@
   .plano-legend i.pl.sold{background:var(--navy)}
   .plano-legend i.pl.avail{background:#fff;border:1.5px dashed var(--coral)}
   .plano-legend i.pl.unk{background:#eef1f4;border:1px solid var(--line-soft)}
-  .planoviewport{position:relative;overflow:hidden;height:560px;background:#f7f9fb;border:1px solid var(--line-soft);border-radius:8px;margin:16px;cursor:grab;touch-action:none}
-  #planoimg{position:absolute;top:0;left:0;transform-origin:0 0;user-select:none;-webkit-user-drag:none;max-width:none}
+
   .prlot{cursor:pointer;transition:opacity .1s}
   .prlot:hover{opacity:1;stroke:var(--navy);stroke-width:1.5}
   .plano-bar{display:flex;gap:24px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line-soft);background:#fafbfc}
@@ -508,16 +507,6 @@
     <div id="utilidad_cards" style="margin-top:20px"></div>
   </div>
 
-  <!-- Plano oficial (imagen real) -->
-  <div class="panel" data-section="inventario">
-    <div class="panel-h">
-      <div><h2>Plano oficial</h2><div class="desc">Plano urbanístico aprobado (Parcelación Villa Claudia, Curaduría Urbana 2). Usa los controles para acercar y arrastra para desplazarte.</div></div>
-      <div class="toolbar"><button class="btn-line" onclick="planoZoom(1.25)">+</button><button class="btn-line" onclick="planoZoom(0.8)">−</button><button class="btn-line" onclick="planoZoomReset()">↺ Ajustar</button><a class="btn-line" href="plano.jpg" target="_blank" style="text-decoration:none">⛶ Pantalla completa</a></div>
-    </div>
-    <div id="planoviewport" class="planoviewport">
-      <img id="planoimg" src="plano.jpg" alt="Plano oficial Sierraluna" draggable="false">
-    </div>
-  </div>
 
   <!-- Plano general / mapa de absorción -->
   <div class="panel" data-section="inventario">
@@ -1678,39 +1667,6 @@ function renderPlanoMap(){
   html+='<div class="plano-legend"><span><i class="pl sold"></i>Vendido</span><span><i class="pl avail"></i>Disponible</span><span><i class="pl unk"></i>Por confirmar</span></div>';
   el.innerHTML=html;
 }
-let _planoState={scale:1,tx:0,ty:0,fit:1};
-function planoZoom(f){
-  _planoState.scale=Math.max(_planoState.fit*0.5,Math.min(6,_planoState.scale*f));
-  applyPlano();
-}
-function planoZoomReset(){ fitPlano(); }
-function applyPlano(){
-  const img=document.getElementById("planoimg"); if(!img) return;
-  img.style.transform=`translate(${_planoState.tx}px,${_planoState.ty}px) scale(${_planoState.scale})`;
-}
-function fitPlano(){
-  const vp=document.getElementById("planoviewport"), img=document.getElementById("planoimg");
-  if(!vp||!img||!img.naturalWidth) return;
-  const s=vp.clientWidth/img.naturalWidth;
-  _planoState.fit=s; _planoState.scale=s; _planoState.tx=0; _planoState.ty=0;
-  applyPlano();
-}
-function initPlano(){
-  const vp=document.getElementById("planoviewport"), img=document.getElementById("planoimg");
-  if(!vp||!img) return;
-  if(img.complete&&img.naturalWidth) fitPlano(); else img.onload=fitPlano;
-  // Pan con arrastre
-  let drag=false,sx=0,sy=0;
-  vp.onmousedown=e=>{drag=true;sx=e.clientX-_planoState.tx;sy=e.clientY-_planoState.ty;vp.style.cursor="grabbing";};
-  window.addEventListener("mousemove",e=>{if(!drag)return;_planoState.tx=e.clientX-sx;_planoState.ty=e.clientY-sy;applyPlano();});
-  window.addEventListener("mouseup",()=>{drag=false;vp.style.cursor="grab";});
-  // Zoom con rueda
-  vp.onwheel=e=>{e.preventDefault();planoZoom(e.deltaY<0?1.12:0.89);};
-  // Táctil básico (arrastre)
-  vp.ontouchstart=e=>{if(e.touches.length===1){drag=true;sx=e.touches[0].clientX-_planoState.tx;sy=e.touches[0].clientY-_planoState.ty;}};
-  vp.ontouchmove=e=>{if(drag&&e.touches.length===1){_planoState.tx=e.touches[0].clientX-sx;_planoState.ty=e.touches[0].clientY-sy;applyPlano();}};
-  vp.ontouchend=()=>{drag=false;};
-}
 function showLotDetail(code){
   code=code.toUpperCase();
   const sm=soldMap();
@@ -2763,7 +2719,6 @@ document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{
 /* ---- Tab navigation ---- */
 let activeTab = sessionStorage.getItem('slTab') || 'resumen';
 function showTab(name){
-  if(name==='inventario'){setTimeout(initPlano,60);}
   document.querySelectorAll('[data-section]').forEach(el=>{
     el.classList.toggle('sec-hidden', el.dataset.section !== name);
   });
