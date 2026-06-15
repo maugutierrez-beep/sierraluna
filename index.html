@@ -101,25 +101,28 @@
     padding:11px 12px;border-bottom:2px solid var(--navy2);white-space:nowrap;font-size:10.8px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;user-select:none}
   thead th.num{text-align:right}
   thead th:hover{color:#fff}
-  tbody td{padding:10px 12px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
   tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody td.num.strong{font-weight:700;color:var(--navy)}
   tbody tr:hover{background:#f5f7fa}
-  .cm{font-weight:600;color:var(--navy)}
-  .cm small{display:block;font-weight:500;color:var(--ink-soft);font-size:10.2px;letter-spacing:.04em}
+  .cm{font-weight:600;color:var(--navy);max-width:280px;white-space:normal;line-height:1.3}
+  .cm small{display:block;font-weight:500;color:var(--ink-soft);font-size:10.2px;letter-spacing:.03em;margin-top:2px}
+  td .lotechip{display:inline-block;background:#eef1f5;color:var(--navy);font-weight:600;font-size:11.5px;padding:2px 9px;border-radius:6px}
+  td small.m2{display:block;color:var(--ink-soft);font-size:10px;margin-top:3px;font-weight:500}
+  .anticipo{color:#a8997d;font-style:italic}
   .pill{display:inline-block;font-size:10.2px;font-weight:600;padding:3px 9px;border-radius:999px;letter-spacing:.02em}
   .pill.si{background:#e3eee9;color:#236b4b}
   .pill.pend{background:#fae3d8;color:#bb5a2e}
   .pill.otro{background:#eceef2;color:#5b6573}
   .pill.cont{background:#e6ebf2;color:#33507a}
   .pill.fin{background:#e6ebf2;color:#1A3352}
-  .progress{width:78px;height:7px;border-radius:6px;background:#e6e9ee;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:7px}
+  .progress{width:64px;height:7px;border-radius:6px;background:#e6e9ee;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:7px}
   .progress > i{display:block;height:100%;border-radius:6px}
-  .pct{font-weight:600}
-  .rowbtns{display:flex;gap:6px}
-  .rowbtns button{padding:6px 9px;font-size:11.5px;border-radius:8px}
-  .ib{background:var(--coral);color:#fff}
-  .ie{background:#e9ecf1;color:var(--navy)}
-  .id{background:#fbeee8;color:var(--red)}
+  .pct{font-weight:600;font-size:11.5px}
+  .rowbtns{display:flex;gap:5px;justify-content:flex-end;align-items:center}
+  .iact{width:30px;height:30px;padding:0;font-size:12px;border-radius:8px;border:none;background:#eef1f5;color:var(--navy);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:background .12s;font-weight:600}
+  .iact:hover{background:#dde3ea}
+  .iact.pdf{font-size:9.5px;font-weight:700;letter-spacing:.02em;width:auto;padding:0 9px}
   tr.zerorow td{background:#fbf3ef}
   /* Lower grid */
   .lower{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
@@ -279,7 +282,7 @@
   /* Sticky table columns */
   .tbl-first{position:sticky;left:0;z-index:2;background:var(--card);box-shadow:3px 0 8px rgba(26,51,82,.07)}
   .tbl-last{position:sticky;right:0;z-index:2;background:var(--card);box-shadow:-3px 0 8px rgba(26,51,82,.07)}
-  thead .tbl-first,thead .tbl-last{z-index:4;background:var(--bg2)}
+  thead .tbl-first,thead .tbl-last{z-index:4;background:var(--navy)}
   /* Sticky table header (scroll down in long lists) */
   #tbl thead tr{position:sticky;top:0;z-index:3;background:var(--bg2)}
   /* Row left-border status indicator */
@@ -293,14 +296,14 @@
   .mpill.active,.mpill:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
   .mov-date{font-variant-numeric:tabular-nums;color:var(--ink-soft);font-size:12px}
   /* Status pills en tabla compradores */
-  .spill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:99px;letter-spacing:.03em;margin-left:5px;vertical-align:middle}
+  .spill{display:inline-block;font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.03em;vertical-align:middle;white-space:nowrap}
   .spill.pagado{background:#d6f0e0;color:#1a6b3a}
   .spill.mora{background:#fde8e4;color:#b93020}
   .spill.pronto{background:#fff0d6;color:#8c5a00}
   .spill.sinplan{background:#f0f0f0;color:#777}
   .spill.aldia{background:#e4f0ff;color:#1a3352}
   /* WhatsApp button */
-  .wa-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:800;border:none;cursor:pointer;text-decoration:none;flex-shrink:0}
+  .wa-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:#25D366;color:#fff;font-size:13px;font-weight:800;border:none;cursor:pointer;text-decoration:none;flex-shrink:0}
   .wa-btn:hover{background:#1da851}
   /* Alertas widget */
   .alertas-box{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:20px}
@@ -1294,10 +1297,9 @@ function barColor(p){return p>=0.999?"#1A3352":p>=0.5?"#274a72":p>0?"#EF7746":"#
 
 /* ---------- Render ---------- */
 const COLS=[
- {k:"name",t:"Comprador",sticky:"first"},{k:"lote",t:"Lote"},{k:"fecha",t:"Fecha"},
- {k:"tam",t:"m²",num:1},
- {k:"total",t:"Ventas totales",num:1},{k:"ab",t:"Abonado",num:1},{k:"sal",t:"Saldo",num:1},{k:"pc",t:"% Abono",num:1},
- {k:"fin",t:"Financiación"},{k:"prom",t:"Promesa"},{k:"vend",t:"Vendedor"},{k:"act",t:"",sticky:"last"}
+ {k:"name",t:"Comprador",sticky:"first"},{k:"lote",t:"Lote"},
+ {k:"total",t:"Valor",num:1},{k:"ab",t:"Abonado",num:1},{k:"sal",t:"Saldo",num:1},
+ {k:"pc",t:"Avance",num:1},{k:"estado",t:"Estado"},{k:"act",t:"",sticky:"last"}
 ];
 let sortK="pc",sortDir=1;
 let charts={};
@@ -1336,7 +1338,7 @@ function render(){
     }
     return true;
   });
-  const val=(b,k)=>({name:b.name.toLowerCase(),lote:b.lote,fecha:b.iso||"",tam:b.tam,pm2:b.pm2,total:b.total,ab:abonado(b),sal:saldo(b),pc:pct(b),fin:b.fin,prom:b.prom,vend:b.vend,com:b.com}[k]);
+  const val=(b,k)=>({name:b.name.toLowerCase(),lote:b.lote,fecha:b.iso||"",tam:b.tam,pm2:b.pm2,total:b.total,ab:abonado(b),sal:saldo(b),pc:pct(b),estado:pct(b),fin:b.fin,prom:b.prom,vend:b.vend,com:b.com}[k]);
   rows.sort((a,b)=>{let x=val(a,sortK),y=val(b,sortK);if(typeof x==="string"){return x.localeCompare(y)*sortDir;}return (x-y)*sortDir;});
 
   const tb=document.getElementById("tbody");tb.innerHTML="";
@@ -1358,25 +1360,21 @@ function render(){
     // WhatsApp button
     const tel=(b.tel||"").replace(/\D/g,"");
     const waMsg=encodeURIComponent(`Hola ${b.name.split(" ")[0]}, te escribimos de *Sierraluna Club Residencial* 🏡\nTu saldo pendiente es *${money(sal)}*${e.mora>0.5?` (mora: ${money(e.mora)})`:""}. \n¿Podemos coordinar tu próximo abono?`);
-    const waBtn=tel?`<a href="https://wa.me/57${tel}?text=${waMsg}" target="_blank" class="wa-btn" title="WhatsApp ${b.tel}">W</a>`:'<span style="width:28px;display:inline-block"></span>';
+    const waBtn=tel?`<a href="https://wa.me/57${tel}?text=${waMsg}" target="_blank" class="wa-btn" title="WhatsApp ${b.tel}">W</a>`:'';
     tr.innerHTML=`
-      <td class="cm tbl-first">${esc(b.name)}${spill}<small>${b.code}${(b.stage||1)===2?' · Etapa 2':''}</small></td>
-      <td>${esc(b.lote)||"—"}</td>
-      <td>${b.fecha||"—"}</td>
-      <td class="num">${b.tam?NUM.format(b.tam):"—"}</td>
-      <td class="num">${money(b.total)}</td>
+      <td class="cm tbl-first">${esc(b.name)}<small>${b.code}${(b.stage||1)===2?' · E2':''}${b.fecha?' · '+b.fecha:''}${b.vend?' · '+esc(b.vend):''}</small></td>
+      <td>${b.lote?`<span class="lotechip">${esc(b.lote)}</span>`:"—"}${b.tam?`<small class="m2">${NUM.format(b.tam)} m²</small>`:''}</td>
+      <td class="num strong">${money(b.total)}</td>
       <td class="num">${money(ab)}</td>
-      <td class="num">${b.total>0?money(sal):'<span style="color:#a8997d">anticipo</span>'}</td>
+      <td class="num">${b.total>0?money(sal):'<span class="anticipo">anticipo</span>'}</td>
       <td class="num">${b.total>0?`<span class="progress"><i style="width:${Math.min(100,p*100)}%;background:${barColor(p)}"></i></span><span class="pct">${(p*100).toFixed(0)}%</span>`:'—'}</td>
-      <td>${b.fin?`<span class="pill ${finClass(b.fin)}">${esc(b.fin)}</span>`:"—"}</td>
-      <td>${b.prom?`<span class="pill ${promClass(b.prom)}">${esc(b.prom)}</span>`:"—"}</td>
-      <td>${esc(b.vend)||"—"}</td>
+      <td>${spill||'—'}</td>
       <td class="tbl-last"><div class="rowbtns">
-        ${b.promesaUrl?`<a href="${b.promesaUrl}" target="_blank" class="ie" title="Ver promesa en Drive" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">📄</a>`:''}
+        ${b.promesaUrl?`<a href="${b.promesaUrl}" target="_blank" class="iact" title="Ver promesa en Drive">📄</a>`:''}
         ${waBtn}
-        <button class="ib" title="Registrar abono" onclick="openPayment('${b.id}')">＄</button>
-        <button class="ie" title="Editar" onclick="openBuyer('${b.id}')">✎</button>
-        <button class="btn-pdf" title="Estado de cuenta PDF" onclick="generatePDF('${b.id}')">↓ PDF</button>
+        <button class="iact" title="Registrar abono" onclick="openPayment('${b.id}')">＄</button>
+        <button class="iact" title="Editar" onclick="openBuyer('${b.id}')">✎</button>
+        <button class="iact pdf" title="Estado de cuenta PDF" onclick="generatePDF('${b.id}')">PDF</button>
       </div></td>`;
     tb.appendChild(tr);
   });
