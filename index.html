@@ -343,6 +343,14 @@
   .btn-rc:hover{background:#b3893f;color:#fff}
   .btn-rc.emitido{border-color:#2a7d4f;background:#eefaf2;color:#1d6b3f}
   .btn-rc.emitido:hover{background:#2a7d4f;color:#fff}
+  .audit-bar{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 14px}
+  .audit-bar .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .audit-bar .s b{font-size:20px;color:var(--navy);font-weight:700}
+  .audit-alert{padding:10px 14px;border-radius:9px;font-size:12.5px;font-weight:600;margin-bottom:8px}
+  .audit-alert.ok{background:#eefaf2;color:#1d6b3f;border:1px solid #bce5cd}
+  .audit-alert.err{background:#fdecea;color:#b93020;border:1px solid #f3c5bd}
+  .audit-alert.info{background:#eef3fb;color:#33507a;border:1px solid #cdddf0}
+  tr.audit-dup td{background:#fdecea}
   .btn-vc{font-size:10.5px;font-weight:700;font-family:'Montserrat';padding:4px 10px;border-radius:7px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.12s}
   .btn-vc.has-vc{background:#edf3fb;border-color:#c5d4ec;color:var(--navy);border-style:solid}
   .btn-vc.has-vc:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -474,6 +482,14 @@
     </div>
     <div class="inv-summary" id="mov_summary"></div>
     <div id="movbody"></div>
+  </div>
+
+  <!-- Auditoría de recibos -->
+  <div class="panel" data-section="movimientos">
+    <div class="panel-h">
+      <div><h2>Auditoría de recibos de caja</h2><div class="desc">Control de la secuencia de recibos emitidos. Verifica que no haya números duplicados ni saltos.</div></div>
+    </div>
+    <div id="auditbody"></div>
   </div>
 
   <!-- Lower: Liquidity + Offline -->
@@ -2011,6 +2027,7 @@ function renderMovimientos(){
       </tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
+  renderAuditoria();
 }
 
 /* ---------- Recibo de caja ---------- */
@@ -2033,6 +2050,72 @@ function recibosUsados(){
     if(p.recibo){m[p.recibo]=(m[p.recibo]||0)+1;}
   }));
   return m;
+}
+// Vista de auditoría: lista todos los recibos emitidos en orden y detecta anomalías.
+function renderAuditoria(){
+  const el=document.getElementById("auditbody"); if(!el) return;
+  // Recolectar todos los recibos emitidos
+  const emitidos=[];
+  DB.buyers.forEach(b=>(b.payments||[]).forEach((p,idx)=>{
+    if(p.recibo){
+      emitidos.push({num:+p.recibo,code:b.code,name:b.name,date:p.date||'',amount:+p.amount||0,
+        emitFecha:p.reciboFecha||'',buyerId:b.id,payIdx:idx});
+    }
+  }));
+  emitidos.sort((a,b)=>a.num-b.num);
+
+  // Detectar duplicados
+  const cuenta={}; emitidos.forEach(r=>cuenta[r.num]=(cuenta[r.num]||0)+1);
+  const duplicados=Object.keys(cuenta).filter(n=>cuenta[n]>1).map(Number);
+
+  // Detectar huecos en la secuencia (entre el min y max emitido)
+  const huecos=[];
+  if(emitidos.length){
+    const min=emitidos[0].num, max=emitidos[emitidos.length-1].num;
+    const presentes=new Set(emitidos.map(r=>r.num));
+    for(let n=min;n<=max;n++){ if(!presentes.has(n)) huecos.push(n); }
+  }
+
+  // Resumen / alertas
+  let alert='';
+  if(duplicados.length){
+    alert+=`<div class="audit-alert err">⚠ Números DUPLICADOS detectados: ${duplicados.join(', ')}. Revisar urgente.</div>`;
+  }
+  if(!duplicados.length){
+    alert+=`<div class="audit-alert ok">✓ Sin duplicados — la secuencia es íntegra.</div>`;
+  }
+  if(huecos.length){
+    const muestra=huecos.length>15?huecos.slice(0,15).join(', ')+'…':huecos.join(', ');
+    alert+=`<div class="audit-alert info">ℹ ${huecos.length} número(s) sin emitir dentro del rango (normal si aún no generas esos recibos): ${muestra}</div>`;
+  }
+
+  const totalEmit=emitidos.length;
+  const proximo=DB.reciboCounter||281;
+  const rango=emitidos.length?`${emitidos[0].num} – ${emitidos[emitidos.length-1].num}`:'—';
+
+  let head=`<div class="audit-bar">
+    <div class="s"><span>Recibos emitidos</span><b>${totalEmit}</b></div>
+    <div class="s"><span>Rango</span><b>${rango}</b></div>
+    <div class="s"><span>Próximo número</span><b>N° ${proximo}</b></div>
+  </div>${alert}`;
+
+  // Tabla
+  let rows='';
+  emitidos.forEach(r=>{
+    const dup=cuenta[r.num]>1;
+    rows+=`<tr class="${dup?'audit-dup':''}">
+      <td class="num strong">N° ${r.num}</td>
+      <td>${esc(r.name)}<small style="display:block;color:var(--ink-soft);font-size:10px">${r.code}</small></td>
+      <td class="fecha">${r.date||'—'}</td>
+      <td class="num">${money(r.amount)}</td>
+      <td style="text-align:right"><button class="btn-rc emitido" onclick="generateRecibo('${r.buyerId}',${r.payIdx})">Reimprimir</button></td>
+    </tr>`;
+  });
+  if(!rows) rows=`<tr><td colspan="5" style="padding:16px;color:var(--ink-soft)">Aún no se ha emitido ningún recibo con el nuevo sistema. El primero será el N° ${proximo}.</td></tr>`;
+
+  el.innerHTML=head+`<div class="tscroll" style="margin-top:14px"><table class="invtbl">
+    <thead><tr><th>Recibo</th><th>Comprador</th><th>Fecha pago</th><th class="r">Monto</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
 }
 function numToWords(n){
   if(n===0)return'cero';
