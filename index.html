@@ -341,6 +341,8 @@
 
   .btn-rc{font-size:10px;font-weight:700;font-family:'Montserrat';padding:4px 9px;border-radius:7px;border:1.5px solid #b3893f;background:#fffbf2;color:#8a6820;cursor:pointer;white-space:nowrap;transition:.12s}
   .btn-rc:hover{background:#b3893f;color:#fff}
+  .btn-rc.emitido{border-color:#2a7d4f;background:#eefaf2;color:#1d6b3f}
+  .btn-rc.emitido:hover{background:#2a7d4f;color:#fff}
   .btn-vc{font-size:10.5px;font-weight:700;font-family:'Montserrat';padding:4px 10px;border-radius:7px;border:1.5px dashed var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.12s}
   .btn-vc.has-vc{background:#edf3fb;border-color:#c5d4ec;color:var(--navy);border-style:solid}
   .btn-vc.has-vc:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -1266,8 +1268,8 @@ function migrate(){
     DB._lotesPD1=true; changed=true;
   }
   if(!DB.ingresos) DB.ingresos=[];
-  // Recibo counter starts at 269
-  if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
+  // Recibo counter: 280 fue el último emitido manualmente, el próximo nuevo es 281
+  if(!DB.reciboCounter||DB.reciboCounter<281){DB.reciboCounter=281;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
   const _v006=DB.buyers.find(b=>b.code==='V006');
   if(_v006&&!_v006.nit){
@@ -1950,7 +1952,7 @@ function renderMovimientos(){
     (b.payments||[]).forEach((p,idx)=>{
       moves.push({buyerId:b.id,buyerCode:b.code,buyerName:b.name,payIdx:idx,
         date:p.date||'',amount:+p.amount||0,note:p.note||'',chan:p.chan||'Online',
-        pid:p.pid||null,hasVoucher:!!p.hasVoucher});
+        pid:p.pid||null,hasVoucher:!!p.hasVoucher,recibo:p.recibo||null});
     });
   });
   // Filter
@@ -1996,7 +1998,7 @@ function renderMovimientos(){
       <td class="r">${money(m.amount)}</td>
       <td style="text-align:center">${vcBtn}</td>
       <td class="tbl-last" style="text-align:right;white-space:nowrap">
-        <button class="btn-rc" onclick="generateRecibo('${m.buyerId}',${m.payIdx})">Recibo</button>
+        <button class="btn-rc${m.recibo?' emitido':''}" onclick="generateRecibo('${m.buyerId}',${m.payIdx})" title="${m.recibo?'Recibo N° '+m.recibo+' (ya emitido, reimprime el mismo)':'Emitir recibo de caja'}">${m.recibo?'N° '+m.recibo:'Recibo'}</button>
         <button class="ie" title="Editar" style="margin-left:4px" onclick="openEditMovement('${m.buyerId}',${m.payIdx})">✎</button>
       </td></tr>`;
   });
@@ -2012,6 +2014,26 @@ function renderMovimientos(){
 }
 
 /* ---------- Recibo de caja ---------- */
+// Devuelve el siguiente número de recibo libre, garantizando que NUNCA se duplique.
+// Escanea todos los recibos ya asignados en todos los pagos y toma el máximo+1,
+// nunca por debajo de DB.reciboCounter (que arranca en 281, pues 280 fue el último emitido).
+function nextReciboNumber(){
+  let maxAsignado=280; // 280 = último recibo ya emitido manualmente
+  DB.buyers.forEach(b=>(b.payments||[]).forEach(p=>{
+    if(p.recibo && +p.recibo>maxAsignado) maxAsignado=+p.recibo;
+  }));
+  const base=Math.max(maxAsignado+1, DB.reciboCounter||281);
+  DB.reciboCounter=base+1; // avanzar el contador para la próxima vez
+  return base;
+}
+// Conjunto de números ya usados (para validación / detección de duplicados)
+function recibosUsados(){
+  const m={};
+  DB.buyers.forEach(b=>(b.payments||[]).forEach(p=>{
+    if(p.recibo){m[p.recibo]=(m[p.recibo]||0)+1;}
+  }));
+  return m;
+}
 function numToWords(n){
   if(n===0)return'cero';
   const u=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
@@ -2034,8 +2056,20 @@ function numToWords(n){
 function generateRecibo(buyerId,payIdx){
   const b=DB.buyers.find(x=>x.id===buyerId);if(!b)return;
   const p=(b.payments||[])[payIdx];if(!p)return;
-  if(!DB.reciboCounter)DB.reciboCounter=1;
-  const num=DB.reciboCounter++;save();
+  // ── NUMERACIÓN PERMANENTE Y ÚNICA POR PAGO ──────────────────
+  // El número se asigna UNA sola vez por pago y se guarda en p.recibo.
+  // Reimprimir nunca consume un número nuevo ni cambia el existente.
+  let num;
+  if(p.recibo){
+    // Este pago YA tiene número de recibo asignado: se reutiliza siempre el mismo.
+    num=p.recibo;
+  } else {
+    // Primer recibo de este pago: tomar el siguiente número libre y congelarlo.
+    num=nextReciboNumber();
+    p.recibo=num;
+    p.reciboFecha=new Date().toISOString();
+    save();
+  }
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210;
