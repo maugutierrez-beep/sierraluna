@@ -94,6 +94,8 @@
   .chartcard h3{font-weight:700;font-size:14px;margin:0 0 4px;color:var(--navy);letter-spacing:.01em}
   .chartcard .h3sub{font-size:11px;color:var(--ink-soft);margin-bottom:6px;font-weight:500}
   .cwrap{position:relative;height:230px}
+  .charts2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .cwrap.tall{height:300px}
   /* Table */
   .tscroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%;font-size:12.6px}
@@ -394,7 +396,7 @@
   .tab{transition:all .15s cubic-bezier(.4,0,.2,1)}
 
   @media(max-width:1000px){.ind-grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.mini{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}.lower{grid-template-columns:1fr}.hbtns{position:static;margin-top:16px}}
+  @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.mini{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}.lower{grid-template-columns:1fr}.hbtns{position:static;margin-top:16px}}
 </style>
 
 <div class="wrap">
@@ -446,6 +448,12 @@
     <div class="chartcard"><h3>Estado de la cartera</h3><div class="h3sub">Recibido vs. por cobrar</div><div class="cwrap"><canvas id="ch_cartera"></canvas></div></div>
     <div class="chartcard"><h3>Recaudo por mes</h3><div class="h3sub">Suma de abonos según fecha de venta</div><div class="cwrap"><canvas id="ch_mes"></canvas></div></div>
     <div class="chartcard"><h3>Ventas por vendedor</h3><div class="h3sub">Valor total intermediado</div><div class="cwrap"><canvas id="ch_vend"></canvas></div></div>
+  </div>
+
+  <!-- Sales trend charts -->
+  <div class="charts2" data-section="resumen">
+    <div class="chartcard"><h3>Ventas por mes</h3><div class="h3sub">Valor vendido (firma de contrato) y tendencia</div><div class="cwrap tall"><canvas id="ch_ventasmes"></canvas></div></div>
+    <div class="chartcard"><h3>Ventas acumuladas</h3><div class="h3sub">Crecimiento del valor vendido en el tiempo</div><div class="cwrap tall"><canvas id="ch_ventasacum"></canvas></div></div>
   </div>
 
   <!-- Table -->
@@ -2444,6 +2452,64 @@ function drawCharts(){
     charts.vend=new Chart(document.getElementById("ch_vend"),{type:"bar",
     data:{labels:sk.map(s=>s[0]),datasets:[{data:sk.map(s=>s[1]),backgroundColor:"#274a72",borderRadius:5}]},
     options:{indexAxis:"y",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.x)}}},scales:{x:{grid:{color:gridc},ticks:{callback:v=>moneyShort(v)}},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}});
+
+  // ── VENTAS por mes (por fecha de firma de contrato) ──
+  const ventasMes=(()=>{
+    const byMo={};
+    DB.buyers.forEach(b=>{
+      if(b.code==='PD'||!b.total||!b.iso)return;
+      const mo=b.iso.slice(0,7);
+      byMo[mo]=(byMo[mo]||0)+b.total;
+    });
+    // Construir serie continua mes a mes desde la primera venta hasta hoy
+    const keys=Object.keys(byMo).sort();
+    if(!keys.length)return{labels:[],data:[],acum:[]};
+    const [y0,m0]=keys[0].split('-').map(Number);
+    const now=new Date();
+    const meses=[];
+    let y=y0,m=m0;
+    while(y<now.getFullYear()||(y===now.getFullYear()&&m<=now.getMonth()+1)){
+      meses.push(`${y}-${String(m).padStart(2,'0')}`);
+      m++; if(m>12){m=1;y++;}
+    }
+    const MN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const labels=meses.map(k=>{const[yy,mm]=k.split('-');return MN[+mm-1]+'-'+yy.slice(2);});
+    const data=meses.map(k=>byMo[k]||0);
+    let run=0;const acum=data.map(v=>run+=v);
+    return {labels,data,acum};
+  })();
+
+  // Línea de tendencia (regresión lineal simple sobre ventas mensuales)
+  const trend=(()=>{
+    const d=ventasMes.data;const n=d.length;if(n<2)return d.slice();
+    let sx=0,sy=0,sxy=0,sxx=0;
+    d.forEach((y,x)=>{sx+=x;sy+=y;sxy+=x*y;sxx+=x*x;});
+    const slope=(n*sxy-sx*sy)/(n*sxx-sx*sx);
+    const inter=(sy-slope*sx)/n;
+    return d.map((_,x)=>Math.max(0,inter+slope*x));
+  })();
+
+  charts.ventasmes=new Chart(document.getElementById("ch_ventasmes"),{
+    data:{labels:ventasMes.labels,datasets:[
+      {type:"bar",label:"Ventas del mes",data:ventasMes.data,backgroundColor:"rgba(39,74,114,.78)",borderRadius:5,borderSkipped:false,order:2},
+      {type:"line",label:"Tendencia",data:trend,borderColor:"#EF7746",borderWidth:2.5,borderDash:[6,4],pointRadius:0,tension:0.2,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:"bottom",labels:{boxWidth:12,padding:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)}}},
+      scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
+        x:{ticks:{font:{size:9},maxRotation:60,minRotation:60},grid:{display:false}}}}});
+
+  charts.ventasacum=new Chart(document.getElementById("ch_ventasacum"),{type:"line",
+    data:{labels:ventasMes.labels,datasets:[
+      {label:"Ventas acumuladas",data:ventasMes.acum,borderColor:"#1A3352",borderWidth:2.5,
+        backgroundColor:ctx=>{const c=ctx.chart.ctx;const g=c.createLinearGradient(0,0,0,320);g.addColorStop(0,'rgba(26,51,82,.28)');g.addColorStop(1,'rgba(26,51,82,.02)');return g;},
+        fill:true,pointRadius:2,pointHoverRadius:5,tension:0.25}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Acumulado: '+money(c.raw)}}},
+      scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
+        x:{ticks:{font:{size:9},maxRotation:60,minRotation:60},grid:{display:false}}}}});
 }
 
 /* ---------- Modals: payment ---------- */
