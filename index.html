@@ -96,6 +96,13 @@
   .cwrap{position:relative;height:230px}
   .charts2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
   .cwrap.tall{height:300px}
+  .promstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .ps-card{background:var(--card);border:1px solid var(--line-soft);border-radius:13px;box-shadow:var(--shadow);padding:14px 16px}
+  .ps-card.acc{background:#fff8f4;border-color:#f3c9b6}
+  .ps-l{font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+  .ps-v{font-size:21px;font-weight:700;color:var(--navy);margin:5px 0 2px;letter-spacing:-.01em}
+  .ps-card.acc .ps-v{color:var(--coral)}
+  .ps-s{font-size:10.5px;color:var(--ink-soft)}
   /* Table */
   .tscroll{overflow-x:auto}
   table{border-collapse:collapse;width:100%;font-size:12.6px}
@@ -452,9 +459,10 @@
 
   <!-- Sales trend charts -->
   <div class="charts2" data-section="resumen">
-    <div class="chartcard"><h3>Ventas por mes</h3><div class="h3sub">Valor vendido (firma de contrato) y tendencia</div><div class="cwrap tall"><canvas id="ch_ventasmes"></canvas></div></div>
+    <div class="chartcard"><h3>Ventas por mes</h3><div class="h3sub">Valor vendido (firma de contrato), tendencia y promedio acumulado</div><div class="cwrap tall"><canvas id="ch_ventasmes"></canvas></div></div>
     <div class="chartcard"><h3>Ventas acumuladas</h3><div class="h3sub">Crecimiento del valor vendido en el tiempo</div><div class="cwrap tall"><canvas id="ch_ventasacum"></canvas></div></div>
   </div>
+  <div class="promstrip" data-section="resumen" id="promstrip"></div>
 
   <!-- Table -->
   <div class="panel" data-section="compradores">
@@ -2489,13 +2497,20 @@ function drawCharts(){
     return d.map((_,x)=>Math.max(0,inter+slope*x));
   })();
 
+  // Promedio acumulado mes a mes (cómo evoluciona el promedio mensual)
+  const promAcum=(()=>{
+    const d=ventasMes.data;let run=0;
+    return d.map((v,i)=>{run+=v;return run/(i+1);});
+  })();
+
   charts.ventasmes=new Chart(document.getElementById("ch_ventasmes"),{
     data:{labels:ventasMes.labels,datasets:[
-      {type:"bar",label:"Ventas del mes",data:ventasMes.data,backgroundColor:"rgba(39,74,114,.78)",borderRadius:5,borderSkipped:false,order:2},
-      {type:"line",label:"Tendencia",data:trend,borderColor:"#EF7746",borderWidth:2.5,borderDash:[6,4],pointRadius:0,tension:0.2,order:1}
+      {type:"bar",label:"Ventas del mes",data:ventasMes.data,backgroundColor:"rgba(39,74,114,.78)",borderRadius:5,borderSkipped:false,order:3},
+      {type:"line",label:"Tendencia",data:trend,borderColor:"#EF7746",borderWidth:2.5,borderDash:[6,4],pointRadius:0,tension:0.2,order:1},
+      {type:"line",label:"Promedio acumulado",data:promAcum,borderColor:"#2a9d6a",borderWidth:2,pointRadius:0,tension:0.25,order:2}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:"bottom",labels:{boxWidth:12,padding:12,font:{size:11}}},
+      plugins:{legend:{position:"bottom",labels:{boxWidth:12,padding:11,font:{size:10.5}}},
         tooltip:{callbacks:{label:c=>c.dataset.label+': '+money(c.raw)}}},
       scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
         x:{ticks:{font:{size:9},maxRotation:60,minRotation:60},grid:{display:false}}}}});
@@ -2510,6 +2525,43 @@ function drawCharts(){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Acumulado: '+money(c.raw)}}},
       scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
         x:{ticks:{font:{size:9},maxRotation:60,minRotation:60},grid:{display:false}}}}});
+
+  // ── Tira de indicadores de promedio mensual ──
+  renderPromStrip(ventasMes);
+}
+
+function renderPromStrip(vm){
+  const el=document.getElementById("promstrip"); if(!el) return;
+  const total=vm.data.reduce((a,b)=>a+b,0);
+  const nMeses=vm.data.length;
+  const mesesActivos=vm.data.filter(v=>v>0).length;
+  const promGlobal=nMeses?total/nMeses:0;
+  const promActivos=mesesActivos?total/mesesActivos:0;
+  // Promedio por año calendario
+  const porAnio={};
+  vm.labels.forEach((lab,i)=>{
+    const anio="20"+lab.split("-")[1];
+    (porAnio[anio]=porAnio[anio]||[]).push(vm.data[i]);
+  });
+  const anios=Object.keys(porAnio).sort();
+  // Variación del promedio entre el primer y último año con datos
+  let variacion="";
+  if(anios.length>=2){
+    const pa=porAnio[anios[0]].reduce((a,b)=>a+b,0)/porAnio[anios[0]].length;
+    const pu=porAnio[anios[anios.length-1]].reduce((a,b)=>a+b,0)/porAnio[anios[anios.length-1]].length;
+    if(pa>0){const chg=((pu-pa)/pa*100); variacion=(chg>=0?"+":"")+chg.toFixed(0)+"%";}
+  }
+  let cards=`
+    <div class="ps-card"><div class="ps-l">Promedio mensual</div><div class="ps-v">${moneyShort(promActivos)}</div><div class="ps-s">en meses con ventas</div></div>
+    <div class="ps-card"><div class="ps-l">Promedio global</div><div class="ps-v">${moneyShort(promGlobal)}</div><div class="ps-s">sobre ${nMeses} meses corridos</div></div>`;
+  anios.forEach(a=>{
+    const vals=porAnio[a];const tot=vals.reduce((x,y)=>x+y,0);const pr=tot/vals.length;
+    cards+=`<div class="ps-card"><div class="ps-l">Promedio ${a}</div><div class="ps-v">${moneyShort(pr)}</div><div class="ps-s">${moneyShort(tot)} en ${vals.length} meses</div></div>`;
+  });
+  if(variacion){
+    cards+=`<div class="ps-card acc"><div class="ps-l">Crecimiento del promedio</div><div class="ps-v">${variacion}</div><div class="ps-s">${anios[0]} vs ${anios[anios.length-1]}</div></div>`;
+  }
+  el.innerHTML=cards;
 }
 
 /* ---------- Modals: payment ---------- */
