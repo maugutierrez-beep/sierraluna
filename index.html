@@ -1333,7 +1333,34 @@ const COP=new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximum
 const NUM=new Intl.NumberFormat("es-CO",{maximumFractionDigits:0});
 function money(n){return COP.format(Math.round(n||0));}
 function moneyShort(n){n=n||0;const a=Math.abs(n);if(a>=1e9)return "$"+(n/1e9).toFixed(2)+" MM";if(a>=1e6)return "$"+(n/1e6).toFixed(0)+" M";return money(n);}
-function parseNum(s){if(typeof s==="number")return s;if(!s)return 0;return parseFloat(String(s).replace(/[^\d.-]/g,""))||0;}
+function parseNum(s){
+  if(typeof s==="number")return s;
+  if(!s)return 0;
+  let str=String(s).trim();
+  // Quitar todo menos dígitos, puntos, comas y signo
+  str=str.replace(/[^\d.,-]/g,"");
+  if(!str)return 0;
+  // Formato colombiano: punto = separador de miles, coma = decimal.
+  // Si hay coma, es el decimal: quitar puntos (miles) y cambiar coma por punto.
+  if(str.indexOf(",")>=0){
+    str=str.replace(/\./g,"").replace(",",".");
+  } else {
+    // Sin coma. Si los puntos lucen como separadores de miles (grupos de 3), quitarlos.
+    // Ej: "412.500.000" o "1.250" → quitar puntos. Pero "1250.5" (decimal) se respeta.
+    const partes=str.split(".");
+    if(partes.length>2){
+      // Múltiples puntos = miles con certeza
+      str=str.replace(/\./g,"");
+    } else if(partes.length===2){
+      // Un solo punto: si la parte derecha tiene exactamente 3 dígitos, es separador de miles
+      // (ej "450.000"); si tiene 1-2 dígitos, es decimal (ej "1250.5", "330.4")
+      if(partes[1].length===3 && partes[0].length<=3){
+        str=str.replace(/\./g,"");
+      }
+    }
+  }
+  return parseFloat(str)||0;
+}
 function abonado(b){return (b.payments||[]).reduce((a,p)=>a+(+p.amount||0),0);}
 function saldo(b){return b.total-abonado(b);}
 function pct(b){return b.total>0?abonado(b)/b.total:0;}
