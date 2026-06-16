@@ -108,6 +108,7 @@
   .cm{font-weight:600;color:var(--navy);max-width:280px;white-space:normal;line-height:1.3}
   .cm small{display:block;font-weight:500;color:var(--ink-soft);font-size:10.2px;letter-spacing:.03em;margin-top:2px}
   td .lotechip{display:inline-block;background:#eef1f5;color:var(--navy);font-weight:600;font-size:11.5px;padding:2px 9px;border-radius:6px}
+  td.fecha{color:var(--ink-soft);font-size:11.5px;font-variant-numeric:tabular-nums}
   td small.m2{display:block;color:var(--ink-soft);font-size:10px;margin-top:3px;font-weight:500}
   .anticipo{color:#a8997d;font-style:italic}
   .pill{display:inline-block;font-size:10.2px;font-weight:600;padding:3px 9px;border-radius:999px;letter-spacing:.02em}
@@ -396,6 +397,7 @@
 
   <div class="mini">
     <div class="mc"><div class="n" id="m_lotes">—</div><div class="l">Lotes vendidos</div></div>
+    <div class="mc"><div class="n" id="m_m2">—</div><div class="l">m² vendidos</div></div>
     <div class="mc"><div class="n" id="m_pagados">—</div><div class="l">Pagados al 100%</div></div>
     <div class="mc"><div class="n" id="m_saldo">—</div><div class="l">Con saldo pendiente</div></div>
     <div class="mc"><div class="n" id="m_prom">—</div><div class="l">Promesas firmadas</div></div>
@@ -1257,6 +1259,12 @@ function migrate(){
     _s4('V017',b=>{b.total=278000000;b.lote='H6';b.tam=1390;});
     DB._planesPromesas4=true; changed=true;
   }
+  // Lotes POR DEFINIR (Samir, AVM, Glory) - confirmado por Mauricio
+  if(!DB._lotesPD1){
+    const _pd=(code)=>{const b=DB.buyers.find(x=>x.code===code);if(b)b.lote='POR DEFINIR';};
+    _pd('V043'); _pd('V047'); _pd('V041');
+    DB._lotesPD1=true; changed=true;
+  }
   if(!DB.ingresos) DB.ingresos=[];
   // Recibo counter starts at 269
   if(!DB.reciboCounter||DB.reciboCounter<269){DB.reciboCounter=269;changed=true;}
@@ -1297,7 +1305,7 @@ function barColor(p){return p>=0.999?"#1A3352":p>=0.5?"#274a72":p>0?"#EF7746":"#
 
 /* ---------- Render ---------- */
 const COLS=[
- {k:"name",t:"Comprador",sticky:"first"},{k:"lote",t:"Lote"},
+ {k:"name",t:"Comprador",sticky:"first"},{k:"lote",t:"Lote"},{k:"fecha",t:"Compra"},
  {k:"total",t:"Valor",num:1},{k:"ab",t:"Abonado",num:1},{k:"sal",t:"Saldo",num:1},
  {k:"pc",t:"Avance",num:1},{k:"estado",t:"Estado"},{k:"act",t:"",sticky:"last"}
 ];
@@ -1362,8 +1370,9 @@ function render(){
     const waMsg=encodeURIComponent(`Hola ${b.name.split(" ")[0]}, te escribimos de *Sierraluna Club Residencial* 🏡\nTu saldo pendiente es *${money(sal)}*${e.mora>0.5?` (mora: ${money(e.mora)})`:""}. \n¿Podemos coordinar tu próximo abono?`);
     const waBtn=tel?`<a href="https://wa.me/57${tel}?text=${waMsg}" target="_blank" class="wa-btn" title="WhatsApp ${b.tel}">W</a>`:'';
     tr.innerHTML=`
-      <td class="cm tbl-first">${esc(b.name)}<small>${b.code}${(b.stage||1)===2?' · E2':''}${b.fecha?' · '+b.fecha:''}${b.vend?' · '+esc(b.vend):''}</small></td>
+      <td class="cm tbl-first">${esc(b.name)}<small>${b.code}${(b.stage||1)===2?' · E2':''}${b.vend?' · '+esc(b.vend):''}</small></td>
       <td>${b.lote?`<span class="lotechip">${esc(b.lote)}</span>`:"—"}${b.tam?`<small class="m2">${NUM.format(b.tam)} m²</small>`:''}</td>
+      <td class="fecha">${b.fecha||"—"}</td>
       <td class="num strong">${money(b.total)}</td>
       <td class="num">${money(ab)}</td>
       <td class="num">${b.total>0?money(sal):'<span class="anticipo">anticipo</span>'}</td>
@@ -1411,6 +1420,8 @@ function renderKPIs(){
   document.getElementById("k_consol").textContent=avance.toFixed(1)+"%";
   document.getElementById("k_consol_m").textContent="recaudo / vendido";
   document.getElementById("m_lotes").textContent=bs.filter(b=>b.total>0).length;
+  const m2vendidos=bs.filter(b=>b.total>0).reduce((a,b)=>a+(+b.tam||0),0);
+  document.getElementById("m_m2").textContent=NUM.format(Math.round(m2vendidos));
   document.getElementById("m_pagados").textContent=bs.filter(isPaid).length;
   document.getElementById("m_saldo").textContent=bs.filter(b=>saldo(b)>0.5).length;
   document.getElementById("m_prom").textContent=bs.filter(b=>(b.prom||"").toLowerCase()==="si").length;
@@ -1456,12 +1467,14 @@ function renderIndicators(){
   const gastosSobreVendido=vendido1>0?(totalGastos/vendido1*100):0;
 
   const cards=[
+    {l:"M² vendidos (total)",v:`${NUM.format(Math.round(real.reduce((a,b)=>a+(+b.tam||0),0)))} m²`,s:`${real.length} lotes · Etapa 1 y 2`,cls:"accent"},
+    {l:"Ticket promedio por lote",v:money(real.length>0?vendido/real.length:0),s:"valor promedio de venta"},
+    {l:"Precio promedio por m²",v:money(precioM2),s:"de las ventas de Etapa 1"},
     {l:"Valor total Etapa 1",v:money(valorTotal1),s:"vendido + disponible, al precio promedio",cls:"good"},
     {l:"% del valor vendido",v:pctValor.toFixed(1)+"%",s:`${money(vendido1)} de ${money(valorTotal1)}`,cls:"good"},
     {l:"Disponible por vender",v:`${availE1.length} lotes`,s:`${NUM.format(Math.round(areaDisp))} m² · Etapa 1`,cls:"accent"},
     {l:"M² disponibles Etapa 1",v:`${NUM.format(Math.round(areaDisp))} m²`,s:`${availE1.length} lotes sin vender`,cls:"accent"},
     {l:"Valor de lo disponible",v:money(valorDisp),s:"lo que queda por vender, al precio promedio"},
-    {l:"Precio promedio por m²",v:money(precioM2),s:"de las ventas de Etapa 1"},
     {l:"Comisiones a vendedores",v:money(comis),s:`${comisPct.toFixed(1)}% de lo vendido`,cls:"accent"},
     {l:"Liquidez disponible",v:money(liqInstr),s:"CDT, fiducuenta, efectivo y offline"},
     {l:"Invertido en el proyecto",v:money(gastado),s:"gastado a la fecha"},
