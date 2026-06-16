@@ -76,7 +76,7 @@
   .kpi .meta{font-size:11.5px;color:var(--ink-soft);margin-top:7px;font-weight:500}
   .kpi .strip{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--navy)}
   .kpi.g .strip{background:var(--navy3)} .kpi.a .strip{background:var(--coral)} .kpi.r .strip{background:var(--coral)} .kpi.d .strip{background:var(--navy)}
-  .mini{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:14px}
+  .mini{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:14px}
   .mc{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow)}
   .mc .n{font-size:23px;color:var(--navy);font-weight:700;line-height:1}
   .mc .l{font-size:10.5px;color:var(--ink-soft);margin-top:6px;letter-spacing:.04em;font-weight:500}
@@ -422,7 +422,7 @@
     <div class="kpi d"><span class="strip"></span><div class="lab">Avance de recaudo</div><div class="val" id="k_consol">—</div><div class="meta" id="k_consol_m"></div></div>
   </div>
 
-  <div class="mini">
+  <div class="mini" data-section="resumen">
     <div class="mc"><div class="n" id="m_lotes">—</div><div class="l">Lotes vendidos</div></div>
     <div class="mc"><div class="n" id="m_m2">—</div><div class="l">m² vendidos</div></div>
     <div class="mc"><div class="n" id="m_pagados">—</div><div class="l">Pagados al 100%</div></div>
@@ -489,7 +489,7 @@
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 0 14px">
       <input id="mov_search" type="text" placeholder="Buscar comprador o concepto…"
         style="flex:1;min-width:200px;padding:8px 13px;border:1px solid var(--line);border-radius:9px;font-family:'Montserrat';font-size:12.5px;background:var(--bg2)"
-        oninput="movFilter.q=this.value;renderMovimientos()">
+        oninput="movFilter.q=this.value;movFilter.limit=40;renderMovimientos()">
       <div style="display:flex;gap:5px;flex-wrap:wrap" id="mov_periods">
         <button class="mpill active" onclick="setMovPeriod('all')">Todos</button>
         <button class="mpill" onclick="setMovPeriod('2026')">2026</button>
@@ -557,13 +557,6 @@
 
 
   <!-- Plano general / mapa de absorción -->
-  <div class="panel" data-section="inventario">
-    <div class="panel-h">
-      <div><h2>Plano general · absorción por manzana</h2><div class="desc">Parcelación "Villa Claudia" (Curaduría Urbana 2, dic-2024) sobre el Lote 1 del predio · 68 ha. Cada celda es un lote; el color indica su estado.</div></div>
-    </div>
-    <div id="planomap"></div>
-  </div>
-
   <!-- Lot inventory -->
   <div class="panel" data-section="inventario">
     <div class="panel-h">
@@ -1692,7 +1685,6 @@ function soldMap(){
 function renderInventory(){
   renderInventoryInto(1, DB.availLots||[], "invsummary","invbody");
   renderInventoryInto(2, DB.availLots2||[], "invsummary2","invbody2");
-  renderPlanoMap();
 }
 // Precio por m² para lotes disponibles (referencia comercial)
 const PM2_DISPONIBLE=410000;
@@ -1984,11 +1976,11 @@ function clearPlan(){
 }
 
 /* ---- Movimientos ---- */
-let movFilter={q:'',period:'all'};
+let movFilter={q:'',period:'all',limit:40};
 let editMovBuyerId=null, editMovIdx=null;
 
 function setMovPeriod(p){
-  movFilter.period=p;
+  movFilter.period=p; movFilter.limit=40;
   document.querySelectorAll('.mpill').forEach(b=>b.classList.toggle('active',b.textContent.trim().toLowerCase()===({'all':'todos','2026':'2026','2025':'2025','month':'este mes'}[p]||p)));
   renderMovimientos();
 }
@@ -2024,9 +2016,12 @@ function renderMovimientos(){
   // Update badge
   const badge=document.getElementById('tc-movimientos');
   if(badge) badge.textContent=moves.length;
-  // Table
+  // Table — paginado para no alargar la página (270 movimientos)
+  if(movFilter.limit===undefined) movFilter.limit=40;
+  const totalF=f.length;
+  const fShown=f.slice(0,movFilter.limit);
   let rows='';
-  f.forEach(m=>{
+  fShown.forEach(m=>{
     const isOff=m.chan==='Offline';
     const chanBadge=`<span class="st ${isOff?'none':'ok'}" style="font-size:10px;margin-left:4px">${m.chan}</span>`;
     // Comprobante button: always show
@@ -2050,6 +2045,10 @@ function renderMovimientos(){
       </td></tr>`;
   });
   if(!rows) rows=`<tr><td colspan="6" style="padding:16px;color:var(--ink-soft)">Sin movimientos que coincidan con los filtros.</td></tr>`;
+  const verMas = totalF>movFilter.limit
+    ? `<div style="text-align:center;padding:14px"><button class="btn-line" onclick="movFilter.limit+=40;renderMovimientos()">Ver más (${totalF-movFilter.limit} restantes)</button>
+       <button class="btn-line" onclick="movFilter.limit=99999;renderMovimientos()" style="margin-left:8px">Ver todos</button></div>`
+    : (movFilter.limit>40 && totalF>40 ? `<div style="text-align:center;padding:14px"><button class="btn-line" onclick="movFilter.limit=40;renderMovimientos()">Ver menos</button></div>` : '');
   document.getElementById('movbody').innerHTML=
     `<div class="tscroll"><table class="invtbl">
       <thead><tr>
@@ -2057,7 +2056,7 @@ function renderMovimientos(){
         <th class="r">Monto</th><th style="text-align:center">Comprobante</th><th class="tbl-last"></th>
       </tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`;
+    </table></div>${verMas}`;
   renderAuditoria();
 }
 
@@ -2130,9 +2129,12 @@ function renderAuditoria(){
     <div class="s"><span>Próximo número</span><b>N° ${proximo}</b></div>
   </div>${alert}`;
 
-  // Tabla
+  // Tabla — mostrar los más recientes primero, limitado (270 recibos)
+  if(window._auditLimit===undefined) window._auditLimit=20;
+  const ordenDesc=[...emitidos].reverse(); // más reciente primero
+  const mostrados=ordenDesc.slice(0,window._auditLimit);
   let rows='';
-  emitidos.forEach(r=>{
+  mostrados.forEach(r=>{
     const dup=cuenta[r.num]>1;
     rows+=`<tr class="${dup?'audit-dup':''}">
       <td class="num strong">N° ${r.num}</td>
@@ -2142,11 +2144,15 @@ function renderAuditoria(){
       <td style="text-align:right"><button class="btn-rc emitido" onclick="generateRecibo('${r.buyerId}',${r.payIdx})">Reimprimir</button></td>
     </tr>`;
   });
-  if(!rows) rows=`<tr><td colspan="5" style="padding:16px;color:var(--ink-soft)">Aún no se ha emitido ningún recibo con el nuevo sistema. El primero será el N° ${proximo}.</td></tr>`;
+  if(!rows) rows=`<tr><td colspan="5" style="padding:16px;color:var(--ink-soft)">Aún no se ha emitido ningún recibo. El primero será el N° ${proximo}.</td></tr>`;
+
+  const verMas = emitidos.length>window._auditLimit
+    ? `<div style="text-align:center;padding:12px"><button class="btn-line" onclick="window._auditLimit=99999;renderAuditoria()">Ver los ${emitidos.length} recibos</button></div>`
+    : (window._auditLimit>20 ? `<div style="text-align:center;padding:12px"><button class="btn-line" onclick="window._auditLimit=20;renderAuditoria()">Ver menos</button></div>` : '');
 
   el.innerHTML=head+`<div class="tscroll" style="margin-top:14px"><table class="invtbl">
     <thead><tr><th>Recibo</th><th>Comprador</th><th>Fecha pago</th><th class="r">Monto</th><th></th></tr></thead>
-    <tbody>${rows}</tbody></table></div>`;
+    <tbody>${rows}</tbody></table></div>${verMas}`;
 }
 function numToWords(n){
   if(n===0)return'cero';
