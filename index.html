@@ -1284,8 +1284,8 @@ function migrate(){
     DB._lotesPD1=true; changed=true;
   }
   if(!DB.ingresos) DB.ingresos=[];
-  // Recibo counter: 280 fue el último emitido manualmente, el próximo nuevo es 281
-  if(!DB.reciboCounter||DB.reciboCounter<281){DB.reciboCounter=281;changed=true;}
+  // Recibo counter: pagos 1-270 numerados cronológicamente, el próximo nuevo es 271
+  if(!DB.reciboCounter||DB.reciboCounter<271){DB.reciboCounter=271;changed=true;}
   // Pre-populate V006 Luis Cesar Rueda personal info
   const _v006=DB.buyers.find(b=>b.code==='V006');
   if(_v006&&!_v006.nit){
@@ -2032,14 +2032,14 @@ function renderMovimientos(){
 
 /* ---------- Recibo de caja ---------- */
 // Devuelve el siguiente número de recibo libre, garantizando que NUNCA se duplique.
-// Escanea todos los recibos ya asignados en todos los pagos y toma el máximo+1,
-// nunca por debajo de DB.reciboCounter (que arranca en 281, pues 280 fue el último emitido).
+// Escanea todos los recibos ya asignados y toma el máximo+1. Los pagos 1-270 están
+// numerados cronológicamente; de ahí en adelante la numeración continúa en orden de emisión.
 function nextReciboNumber(){
-  let maxAsignado=280; // 280 = último recibo ya emitido manualmente
+  let maxAsignado=0;
   DB.buyers.forEach(b=>(b.payments||[]).forEach(p=>{
     if(p.recibo && +p.recibo>maxAsignado) maxAsignado=+p.recibo;
   }));
-  const base=Math.max(maxAsignado+1, DB.reciboCounter||281);
+  const base=Math.max(maxAsignado+1, DB.reciboCounter||271);
   DB.reciboCounter=base+1; // avanzar el contador para la próxima vez
   return base;
 }
@@ -2090,7 +2090,7 @@ function renderAuditoria(){
   }
 
   const totalEmit=emitidos.length;
-  const proximo=DB.reciboCounter||281;
+  const proximo=DB.reciboCounter||271;
   const rango=emitidos.length?`${emitidos[0].num} – ${emitidos[emitidos.length-1].num}`:'—';
 
   let head=`<div class="audit-bar">
