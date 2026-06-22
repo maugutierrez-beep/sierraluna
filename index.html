@@ -3212,32 +3212,54 @@ function generatePDF(buyerId){
   doc.setTextColor(...navy); doc.text('TOTAL ABONADO',M+3,y+4.9);
   doc.text(COP(abn),W-M-3,y+4.9,{align:'right'}); y+=12;
 
-  // ── Payment plan ──────────────────────────────────────
+  // ── Payment plan (con saldo real pendiente) ───────────
   const plan=(b.plan||[]).slice().sort((a,c)=>a.date<c.date?-1:1);
   if(plan.length){
-    if(y>240){doc.addPage();y=20;}
-    y=sectionTitle('PLAN DE PAGOS PROGRAMADO',y);
+    if(y>230){doc.addPage();y=20;}
+    y=sectionTitle('PLAN DE PAGOS',y);
     const todPDF=new Date().toISOString().slice(0,10);
-    let cum=0; const paidAmt=abn;
+    const paidAmt=abn;            // total abonado
+    let cum=0;                    // acumulado de cuotas recorridas
+    let totalPendiente=0;         // suma de lo que realmente falta
     plan.forEach((c,i)=>{
-      if(y>265){doc.addPage();y=20;}
-      cum+=(+c.amount||0);
-      const cubierta=cum<=paidAmt+0.5;
-      const vencida=!cubierta&&c.date<=todPDF;
+      if(y>262){doc.addPage();y=20;}
+      const monto=+c.amount||0;
+      const cubiertoAntes=Math.min(paidAmt,cum);          // abonado aplicado a cuotas previas
+      const aplicadoAqui=Math.max(0,Math.min(monto,paidAmt-cum)); // abonado que cae en esta cuota
+      const pendienteCuota=monto-aplicadoAqui;            // lo que falta de esta cuota
+      cum+=monto;
+      totalPendiente+=pendienteCuota;
+      const cubierta=pendienteCuota<=0.5;
+      const parcial=!cubierta && aplicadoAqui>0.5;
+      const vencida=!cubierta && c.date<=todPDF;
       doc.setFillColor(...(i%2===0?[245,247,250]:[255,255,255])); doc.rect(M,y,W-2*M,6.5,'F');
       doc.setTextColor(...gray); doc.setFont('helvetica','normal'); doc.setFontSize(8);
       doc.text(c.label||c.date,M+3,y+4.6);
-      if(cubierta){doc.setTextColor(46,125,87);doc.setFont('helvetica','bold');doc.text('Cubierta',M+35,y+4.6);}
-      else if(vencida){doc.setTextColor(208,90,58);doc.setFont('helvetica','bold');doc.text('Vencida',M+35,y+4.6);}
-      else{doc.setTextColor(...gray);doc.text('Pendiente',M+35,y+4.6);}
-      doc.setFont('helvetica','bold'); doc.setTextColor(...navy);
-      doc.text(COP(c.amount),W-M-3,y+4.6,{align:'right'}); y+=6.5;
+      // Estado
+      if(cubierta){doc.setTextColor(46,125,87);doc.setFont('helvetica','bold');doc.text('Pagada',M+34,y+4.6);}
+      else if(parcial){doc.setTextColor(183,107,55);doc.setFont('helvetica','bold');doc.text('Parcial',M+34,y+4.6);}
+      else if(vencida){doc.setTextColor(208,90,58);doc.setFont('helvetica','bold');doc.text('Vencida',M+34,y+4.6);}
+      else{doc.setTextColor(...gray);doc.text('Pendiente',M+34,y+4.6);}
+      // Monto pactado (gris, pequeño) y saldo pendiente de la cuota (navy, derecha)
+      doc.setFont('helvetica','normal'); doc.setTextColor(...lgray); doc.setFontSize(7.2);
+      doc.text('Pactado '+COP(monto),W-M-42,y+4.6,{align:'right'});
+      doc.setFont('helvetica','bold'); doc.setFontSize(8);
+      doc.setTextColor(...(cubierta?[46,125,87]:navy));
+      doc.text(cubierta?'—':COP(pendienteCuota),W-M-3,y+4.6,{align:'right'}); y+=6.5;
     });
-    const planTot=plan.reduce((a,c)=>a+(+c.amount||0),0);
-    doc.setFillColor(235,238,245); doc.rect(M,y,W-2*M,7,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(...navy);
-    doc.text('TOTAL PLAN',M+3,y+4.9);
-    doc.text(COP(planTot),W-M-3,y+4.9,{align:'right'}); y+=12;
+    // TOTAL PENDIENTE POR PAGAR (destacado)
+    doc.setFillColor(26,51,82); doc.rect(M,y,W-2*M,8.5,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(255,255,255);
+    doc.text('TOTAL PENDIENTE POR PAGAR',M+3,y+5.7);
+    doc.text(COP(Math.max(0,totalPendiente)),W-M-3,y+5.7,{align:'right'}); y+=12;
+    // Nota aclaratoria si hay cuotas parcialmente cubiertas
+    const hayParcial=(()=>{let cc=0;for(const c of plan){const m=+c.amount||0;const ap=Math.max(0,Math.min(m,paidAmt-cc));cc+=m;if(ap>0.5&&ap<m-0.5)return true;}return false;})();
+    if(hayParcial){
+      doc.setFont('helvetica','italic'); doc.setFontSize(7.3); doc.setTextColor(...gray);
+      const nota='Nota: los montos "Pactados" son los originales del plan. La columna de la derecha muestra el saldo real pendiente de cada cuota luego de aplicar los abonos recibidos.';
+      const lines=doc.splitTextToSize(nota,W-2*M);
+      doc.text(lines,M,y+1); y+=lines.length*3.6+4;
+    }
   }
 
   // ── Footer band ───────────────────────────────────────
