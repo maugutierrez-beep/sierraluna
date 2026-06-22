@@ -672,7 +672,7 @@
       <div class="savebar" id="editmov_info"></div>
       <div class="grid3">
         <div class="fg"><label>Comprador</label>
-          <input type="text" id="editmov_buyer_name" readonly style="background:var(--bg2);cursor:not-allowed"></div>
+          <select id="editmov_buyer"></select></div>
         <div class="fg"><label>Fecha</label>
           <input type="date" id="editmov_date"></div>
         <div class="fg"><label>Monto</label>
@@ -684,6 +684,7 @@
         <div class="fg"><label>Canal</label>
           <select id="editmov_chan"><option value="Online">Online</option><option value="Offline">Offline</option></select></div>
       </div>
+      <p style="font-size:11.5px;color:var(--ink-soft);margin:10px 2px 0">Si cambias el comprador, el abono se moverá a ese comprador conservando su número de recibo.</p>
     </div>
     <div class="modal-f">
       <button class="btn-red" onclick="deleteMovementFromModal()">Eliminar</button>
@@ -2350,25 +2351,44 @@ function openEditMovement(buyerId, payIdx){
   const b=DB.buyers.find(x=>x.id===buyerId); if(!b)return;
   const p=(b.payments||[])[payIdx]; if(!p)return;
   editMovBuyerId=buyerId; editMovIdx=payIdx;
-  document.getElementById('editmov_buyer_name').value=b.name+' ('+b.code+')';
+  // Llenar el selector de compradores (ordenados por código)
+  const sel=document.getElementById('editmov_buyer');
+  sel.innerHTML='';
+  [...DB.buyers].sort((a,c)=>(a.code||'').localeCompare(c.code||'')).forEach(x=>{
+    const o=document.createElement('option');
+    o.value=x.id; o.textContent=`${x.code} · ${x.name}`;
+    if(x.id===buyerId)o.selected=true;
+    sel.appendChild(o);
+  });
   document.getElementById('editmov_date').value=p.date||today();
   document.getElementById('editmov_amount').value=NUM.format(p.amount||0);
   document.getElementById('editmov_note').value=p.note||'';
   document.getElementById('editmov_chan').value=p.chan||'Online';
-  document.getElementById('editmov_info').textContent=
-    `${b.name} · Abono del ${p.date||'—'} · ${money(p.amount)}`;
+  document.getElementById('editmov_info').innerHTML=
+    `${b.name} · Abono del ${p.date||'—'} · ${money(p.amount)}${p.recibo?` · <b>Recibo N° ${p.recibo}</b>`:''}`;
   document.getElementById('ov_editmov').classList.add('on');
 }
 
 function saveEditMovement(){
-  const b=DB.buyers.find(x=>x.id===editMovBuyerId); if(!b)return;
-  const p=(b.payments||[])[editMovIdx]; if(!p)return;
+  const bOrig=DB.buyers.find(x=>x.id===editMovBuyerId); if(!bOrig)return;
+  const p=(bOrig.payments||[])[editMovIdx]; if(!p)return;
   const amt=parseNum(document.getElementById('editmov_amount').value);
   if(!amt){alert('Ingresa un monto válido.');return;}
+  const nuevoBuyerId=document.getElementById('editmov_buyer').value;
+  // Actualizar los campos del pago
   p.date=document.getElementById('editmov_date').value||today();
   p.amount=amt;
   p.note=document.getElementById('editmov_note').value.trim();
   p.chan=document.getElementById('editmov_chan').value;
+  // Si cambió de comprador, MOVER el pago (conserva su número de recibo)
+  if(nuevoBuyerId && nuevoBuyerId!==editMovBuyerId){
+    const bNuevo=DB.buyers.find(x=>x.id===nuevoBuyerId);
+    if(bNuevo){
+      if(!bNuevo.payments)bNuevo.payments=[];
+      bOrig.payments.splice(editMovIdx,1);   // quitar del original
+      bNuevo.payments.push(p);                // agregar al nuevo (con su recibo intacto)
+    }
+  }
   save(); closeAll(); render(); renderMovimientos();
 }
 
