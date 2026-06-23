@@ -1991,24 +1991,20 @@ function buildReminderMsg(b,e,tono){
   const abonadoTxt=money(Math.max(0,e.paid));
   const totalTxt=money(b.total||0);
   // Cierre que aclara que es un mensaje automatizado
-  const firma=`\n\n_Este es un mensaje automático de recordatorio generado por el sistema de cartera de Sierraluna Club Residencial. Si ya realizaste tu pago, por favor haz caso omiso y, si deseas, envíanos el comprobante para actualizar tu estado de cuenta. ¡Gracias!_`;
+  const firma=`\n\n_Mensaje automático del sistema de cartera. Si ya realizó su pago, omita este aviso._`;
   // Determinar tono efectivo
   let t=tono;
   if(t==='auto') t = enMora ? 'firme' : 'amable';
 
   let cuerpo;
   if(enMora){
-    const cuotaTxt = e.nextDue ? `*${e.nextDue.label||fechaLegible(e.nextDue.date)}*` : 'pendiente';
-    const venceTxt = e.nextDue && e.nextDue.date ? ` (con fecha de pago ${fechaLegible(e.nextDue.date)})` : '';
-    if(t==='firme'){
-      cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te saludamos cordialmente desde *Sierraluna Club Residencial* 🏡\n\nEsperamos que te encuentres muy bien. Queremos recordarte de manera amable que en tu plan de pagos del lote${lote} tienes una cuota pendiente:\n\n• Cuota: ${cuotaTxt}${venceTxt}\n• Valor pendiente: *${money(e.mora)}*\n\nPara tu referencia, este es el estado actual de tu cuenta:\n• Valor total del lote: ${totalTxt}\n• Total abonado a la fecha: ${abonadoTxt}\n• Saldo pendiente total: *${saldoTxt}*\n\nSabemos que a veces se nos pasan las fechas, así que con gusto te ayudamos a ponerte al día. Si necesitas coordinar el pago, conocer las opciones disponibles o tienes cualquier inquietud, quedamos completamente atentos para apoyarte.\n\nAgradecemos de antemano tu compromiso con Sierraluna. 🙏${firma}`;
-    }else{
-      cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te escribimos con mucho aprecio desde *Sierraluna Club Residencial* 🏡\n\nNotamos que quedó pendiente tu cuota ${cuotaTxt}${venceTxt} del lote${lote}, por un valor de *${money(e.mora)}*.\n\nTu saldo pendiente total es de *${saldoTxt}* (de ${totalTxt}, ya has abonado ${abonadoTxt}).\n\n¿Podríamos coordinar el abono en estos días? Con gusto te ayudamos con lo que necesites. 🙏${firma}`;
-    }
+    const cuotaTxt = e.nextDue ? `${e.nextDue.label||fechaLegible(e.nextDue.date)}` : 'pendiente';
+    const venceTxt = e.nextDue && e.nextDue.date ? ` con vencimiento ${fechaLegible(e.nextDue.date)}` : '';
+    cuerpo=`Estimado(a) ${primerNombre},\n\nLe recordamos que su cuota *${cuotaTxt}*${venceTxt}, correspondiente al lote${lote}, se encuentra pendiente de pago por un valor de *${money(e.mora)}*.\n\nSaldo total pendiente: *${saldoTxt}*\n\nAgradecemos coordinar el pago a su conveniencia. Quedamos atentos.\n\n*Sierraluna Club Residencial*${firma}`;
   }else{
-    const vence = e.nextDue ? `el *${fechaLegible(e.nextDue.date)}*` : 'próximamente';
+    const vence = e.nextDue ? `el ${fechaLegible(e.nextDue.date)}` : 'próximamente';
     const montoCuota = e.nextDue ? money(Math.max(0,Math.min(+e.nextDue.amount||0, e.sal))) : saldoTxt;
-    cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te saludamos con aprecio desde *Sierraluna Club Residencial* 🏡\n\nTe recordamos con cariño que tu próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nCuando gustes coordinamos el abono. ¡Gracias por ser parte de la familia Sierraluna! 🙏${firma}`;
+    cuerpo=`Estimado(a) ${primerNombre},\n\nLe recordamos que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nQuedamos atentos para coordinar el pago.\n\n*Sierraluna Club Residencial*${firma}`;
   }
   return cuerpo;
 }
