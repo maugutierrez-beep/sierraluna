@@ -1971,7 +1971,20 @@ function fechaLegible(iso){
 
 // Construye el mensaje de WhatsApp para un comprador según su situación
 function buildReminderMsg(b,e,tono){
-  const primerNombre=b.name.split(/[\/]/)[0].trim().split(' ')[0];
+  // Saludo: para empresas usa el nombre de la persona tras "/", o un saludo neutro
+  const raw=b.name.trim();
+  let saludo;
+  const esEmpresa=/S\.?A\.?S\.?|S\.?A\.?\b|LTDA|E\.?U\.?\b|HOLDING|INVERSIONES|GROUP|SERVICIOS|CONSTRUCTORA/i.test(raw);
+  if(raw.includes('/')){
+    // "EMPRESA / Persona Natural" → saluda a la persona
+    const persona=raw.split('/')[1].trim();
+    saludo=persona.split(' ')[0];
+  }else if(esEmpresa){
+    saludo='equipo de '+raw.split(/S\.?A\.?S\.?|LTDA|S\.?A\.?\b/i)[0].trim();
+  }else{
+    saludo=raw.split(' ')[0];
+  }
+  const primerNombre=saludo;
   const lote=b.lote && b.lote!=='POR DEFINIR' && b.lote!=='PD' ? ` (lote ${b.lote})` : '';
   const saldoTxt=money(Math.max(0,e.sal));
   const enMora=e.mora>0.5;
