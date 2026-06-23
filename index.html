@@ -1985,25 +1985,30 @@ function buildReminderMsg(b,e,tono){
     saludo=raw.split(' ')[0];
   }
   const primerNombre=saludo;
-  const lote=b.lote && b.lote!=='POR DEFINIR' && b.lote!=='PD' ? ` (lote ${b.lote})` : '';
+  const lote=b.lote && b.lote!=='POR DEFINIR' && b.lote!=='PD' ? ` *${b.lote}*` : '';
   const saldoTxt=money(Math.max(0,e.sal));
   const enMora=e.mora>0.5;
+  const abonadoTxt=money(Math.max(0,e.paid));
+  const totalTxt=money(b.total||0);
+  // Cierre que aclara que es un mensaje automatizado
+  const firma=`\n\n_Este es un mensaje automático de recordatorio generado por el sistema de cartera de Sierraluna Club Residencial. Si ya realizaste tu pago, por favor haz caso omiso y, si deseas, envíanos el comprobante para actualizar tu estado de cuenta. ¡Gracias!_`;
   // Determinar tono efectivo
   let t=tono;
   if(t==='auto') t = enMora ? 'firme' : 'amable';
 
   let cuerpo;
   if(enMora){
-    const cuotaTxt = e.nextDue ? `correspondiente a *${e.nextDue.label||fechaLegible(e.nextDue.date)}*` : '';
+    const cuotaTxt = e.nextDue ? `*${e.nextDue.label||fechaLegible(e.nextDue.date)}*` : 'pendiente';
+    const venceTxt = e.nextDue && e.nextDue.date ? ` (con fecha de pago ${fechaLegible(e.nextDue.date)})` : '';
     if(t==='firme'){
-      cuerpo=`Hola ${primerNombre}, te saludamos de *Sierraluna Club Residencial*.\n\nTe recordamos que tu cuota ${cuotaTxt} se encuentra *pendiente de pago*. El saldo vencido a la fecha es de *${money(e.mora)}*${lote}.\n\nAgradecemos regularizar tu pago a la mayor brevedad para mantener tu plan al día. Quedamos atentos para coordinar.`;
+      cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te saludamos cordialmente desde *Sierraluna Club Residencial* 🏡\n\nEsperamos que te encuentres muy bien. Queremos recordarte de manera amable que en tu plan de pagos del lote${lote} tienes una cuota pendiente:\n\n• Cuota: ${cuotaTxt}${venceTxt}\n• Valor pendiente: *${money(e.mora)}*\n\nPara tu referencia, este es el estado actual de tu cuenta:\n• Valor total del lote: ${totalTxt}\n• Total abonado a la fecha: ${abonadoTxt}\n• Saldo pendiente total: *${saldoTxt}*\n\nSabemos que a veces se nos pasan las fechas, así que con gusto te ayudamos a ponerte al día. Si necesitas coordinar el pago, conocer las opciones disponibles o tienes cualquier inquietud, quedamos completamente atentos para apoyarte.\n\nAgradecemos de antemano tu compromiso con Sierraluna. 🙏${firma}`;
     }else{
-      cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te escribimos de *Sierraluna Club Residencial* 🏡\n\nNotamos que quedó pendiente tu cuota ${cuotaTxt}${lote}, por un valor de *${money(e.mora)}*. ¿Podemos coordinar el abono en estos días?\n\nCualquier cosa, con gusto te ayudamos.`;
+      cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te escribimos con mucho aprecio desde *Sierraluna Club Residencial* 🏡\n\nNotamos que quedó pendiente tu cuota ${cuotaTxt}${venceTxt} del lote${lote}, por un valor de *${money(e.mora)}*.\n\nTu saldo pendiente total es de *${saldoTxt}* (de ${totalTxt}, ya has abonado ${abonadoTxt}).\n\n¿Podríamos coordinar el abono en estos días? Con gusto te ayudamos con lo que necesites. 🙏${firma}`;
     }
   }else{
     const vence = e.nextDue ? `el *${fechaLegible(e.nextDue.date)}*` : 'próximamente';
     const montoCuota = e.nextDue ? money(Math.max(0,Math.min(+e.nextDue.amount||0, e.sal))) : saldoTxt;
-    cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te saludamos de *Sierraluna Club Residencial* 🏡\n\nTe recordamos con cariño que tu próxima cuota${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nCuando gustes coordinamos el abono. ¡Gracias por ser parte de Sierraluna!`;
+    cuerpo=`Hola ${primerNombre}, ¿cómo estás? Te saludamos con aprecio desde *Sierraluna Club Residencial* 🏡\n\nTe recordamos con cariño que tu próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nCuando gustes coordinamos el abono. ¡Gracias por ser parte de la familia Sierraluna! 🙏${firma}`;
   }
   return cuerpo;
 }
@@ -2067,11 +2072,29 @@ function renderRecordatorios(){
       <div class="rec-estado">${estado}</div>
       <div class="rec-act">
         <button class="rec-preview" onclick="previewReminder('${b.id}')" title="Ver el mensaje antes de enviar">👁</button>
+        <button class="rec-preview" onclick="copyReminder('${b.id}',this)" title="Copiar el mensaje para pegarlo donde quieras">📋</button>
         ${waLink}
       </div>
     </div>`;
   });
   el.innerHTML=head+`<div class="rec-list">${rows}</div>`;
+}
+
+function copyReminder(buyerId,btn){
+  const b=DB.buyers.find(x=>x.id===buyerId); if(!b) return;
+  const e=evalPlan(b);
+  const tono=document.getElementById('rec_tono')?.value||'auto';
+  const msg=buildReminderMsg(b,e,tono);
+  const done=()=>{ if(btn){const o=btn.textContent;btn.textContent='✓';btn.style.color='#1d6b3f';setTimeout(()=>{btn.textContent=o;btn.style.color='';},1400);} };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(msg).then(done).catch(()=>{fallbackCopy(msg);done();});
+  }else{fallbackCopy(msg);done();}
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(_){}
+  document.body.removeChild(ta);
 }
 
 function previewReminder(buyerId){
