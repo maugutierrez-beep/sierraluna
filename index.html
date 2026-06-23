@@ -2000,11 +2000,11 @@ function buildReminderMsg(b,e,tono){
   if(enMora){
     const cuotaTxt = e.nextDue ? `${e.nextDue.label||fechaLegible(e.nextDue.date)}` : 'pendiente';
     const venceTxt = e.nextDue && e.nextDue.date ? ` con vencimiento ${fechaLegible(e.nextDue.date)}` : '';
-    cuerpo=`Estimado(a) ${primerNombre},\n\nLe recordamos que su cuota *${cuotaTxt}*${venceTxt}, correspondiente al lote${lote}, se encuentra pendiente de pago por un valor de *${money(e.mora)}*.\n\nSaldo total pendiente: *${saldoTxt}*\n\nAgradecemos coordinar el pago a su conveniencia. Quedamos atentos.\n\n*Sierraluna Club Residencial*${firma}`;
+    cuerpo=`Estimado(a) ${primerNombre}, reciba un cordial saludo de *Sierraluna Club Residencial*.\n\nEsperamos que se encuentre muy bien. Le recordamos amablemente que su cuota *${cuotaTxt}*${venceTxt}, correspondiente al lote${lote}, está pendiente de pago por un valor de *${money(e.mora)}*.\n\nSaldo total pendiente: *${saldoTxt}*\n\nAdjuntamos su estado de cuenta actualizado para su revisión. Con gusto le ayudamos a coordinar el pago cuando le resulte conveniente.\n\nQuedamos atentos a cualquier inquietud. ¡Gracias por su confianza!\n\n*Sierraluna Club Residencial*${firma}`;
   }else{
     const vence = e.nextDue ? `el ${fechaLegible(e.nextDue.date)}` : 'próximamente';
     const montoCuota = e.nextDue ? money(Math.max(0,Math.min(+e.nextDue.amount||0, e.sal))) : saldoTxt;
-    cuerpo=`Estimado(a) ${primerNombre},\n\nLe recordamos que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nQuedamos atentos para coordinar el pago.\n\n*Sierraluna Club Residencial*${firma}`;
+    cuerpo=`Estimado(a) ${primerNombre}, reciba un cordial saludo de *Sierraluna Club Residencial*.\n\nLe recordamos amablemente que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nAdjuntamos su estado de cuenta actualizado para su referencia. Quedamos atentos para coordinar el pago cuando guste.\n\n¡Gracias por su confianza!\n\n*Sierraluna Club Residencial*${firma}`;
   }
   return cuerpo;
 }
@@ -2069,6 +2069,7 @@ function renderRecordatorios(){
       <div class="rec-act">
         <button class="rec-preview" onclick="previewReminder('${b.id}')" title="Ver el mensaje antes de enviar">👁</button>
         <button class="rec-preview" onclick="copyReminder('${b.id}',this)" title="Copiar el mensaje para pegarlo donde quieras">📋</button>
+        <button class="rec-preview" onclick="generatePDF('${b.id}')" title="Generar estado de cuenta PDF para adjuntar">📄</button>
         ${waLink}
       </div>
     </div>`;
