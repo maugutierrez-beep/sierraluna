@@ -1993,11 +1993,11 @@ function buildReminderMsg(b,e,tono){
   if(enMora){
     const cuotaTxt = e.nextDue ? `${e.nextDue.label||fechaLegible(e.nextDue.date)}` : 'pendiente';
     const venceTxt = e.nextDue && e.nextDue.date ? ` con vencimiento ${fechaLegible(e.nextDue.date)}` : '';
-    cuerpo=`Hola ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nEspero que se encuentre muy bien. Le escribo para recordarle con todo gusto que su cuota *${cuotaTxt}*${venceTxt}, del lote${lote}, está pendiente por un valor de *${money(e.mora)}*.\n\nSu saldo total pendiente es de *${saldoTxt}*. Le adjunto su estado de cuenta actualizado para que lo tenga a la mano.\n\nCualquier cosa quedo atenta para ayudarle a coordinar el pago cuando le quede cómodo. ¡Un abrazo!\n\nCarolina · Sierraluna Club Residencial`;
+    cuerpo=`Estimado(a) ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nEspero que se encuentre muy bien. Le escribo para recordarle que su cuota *${cuotaTxt}*${venceTxt}, del lote${lote}, se encuentra pendiente de pago por un valor de *${money(e.mora)}*.\n\nSu saldo total pendiente es de *${saldoTxt}*. Le adjunto su estado de cuenta actualizado para que lo tenga a la mano.\n\nCualquier cosa quedo atenta para ayudarle a coordinar el pago cuando le quede cómodo.\n\nCarolina · Sierraluna Club Residencial`;
   }else{
     const vence = e.nextDue ? `el ${fechaLegible(e.nextDue.date)}` : 'próximamente';
     const montoCuota = e.nextDue ? money(Math.max(0,Math.min(+e.nextDue.amount||0, e.sal))) : saldoTxt;
-    cuerpo=`Hola ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nLe escribo para recordarle con cariño que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nLe adjunto su estado de cuenta actualizado para su referencia. Quedo atenta para coordinar el pago cuando guste.\n\n¡Un abrazo!\n\nCarolina · Sierraluna Club Residencial`;
+    cuerpo=`Estimado(a) ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nLe escribo para recordarle que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nLe adjunto su estado de cuenta actualizado para su referencia. Quedo atenta para coordinar el pago cuando guste.\n\nCarolina · Sierraluna Club Residencial`;
   }
   return cuerpo;
 }
