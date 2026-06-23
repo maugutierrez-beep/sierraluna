@@ -1988,23 +1988,16 @@ function buildReminderMsg(b,e,tono){
   const lote=b.lote && b.lote!=='POR DEFINIR' && b.lote!=='PD' ? ` *${b.lote}*` : '';
   const saldoTxt=money(Math.max(0,e.sal));
   const enMora=e.mora>0.5;
-  const abonadoTxt=money(Math.max(0,e.paid));
-  const totalTxt=money(b.total||0);
-  // Cierre que aclara que es un mensaje automatizado
-  const firma=`\n\n_Mensaje automático del sistema de cartera. Si ya realizó su pago, omita este aviso._`;
-  // Determinar tono efectivo
-  let t=tono;
-  if(t==='auto') t = enMora ? 'firme' : 'amable';
 
   let cuerpo;
   if(enMora){
     const cuotaTxt = e.nextDue ? `${e.nextDue.label||fechaLegible(e.nextDue.date)}` : 'pendiente';
     const venceTxt = e.nextDue && e.nextDue.date ? ` con vencimiento ${fechaLegible(e.nextDue.date)}` : '';
-    cuerpo=`Estimado(a) ${primerNombre}, reciba un cordial saludo de *Sierraluna Club Residencial*.\n\nEsperamos que se encuentre muy bien. Le recordamos amablemente que su cuota *${cuotaTxt}*${venceTxt}, correspondiente al lote${lote}, está pendiente de pago por un valor de *${money(e.mora)}*.\n\nSaldo total pendiente: *${saldoTxt}*\n\nAdjuntamos su estado de cuenta actualizado para su revisión. Con gusto le ayudamos a coordinar el pago cuando le resulte conveniente.\n\nQuedamos atentos a cualquier inquietud. ¡Gracias por su confianza!\n\n*Sierraluna Club Residencial*${firma}`;
+    cuerpo=`Hola ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nEspero que se encuentre muy bien. Le escribo para recordarle con todo gusto que su cuota *${cuotaTxt}*${venceTxt}, del lote${lote}, está pendiente por un valor de *${money(e.mora)}*.\n\nSu saldo total pendiente es de *${saldoTxt}*. Le adjunto su estado de cuenta actualizado para que lo tenga a la mano.\n\nCualquier cosa quedo atenta para ayudarle a coordinar el pago cuando le quede cómodo. ¡Un abrazo!\n\nCarolina · Sierraluna Club Residencial`;
   }else{
     const vence = e.nextDue ? `el ${fechaLegible(e.nextDue.date)}` : 'próximamente';
     const montoCuota = e.nextDue ? money(Math.max(0,Math.min(+e.nextDue.amount||0, e.sal))) : saldoTxt;
-    cuerpo=`Estimado(a) ${primerNombre}, reciba un cordial saludo de *Sierraluna Club Residencial*.\n\nLe recordamos amablemente que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nAdjuntamos su estado de cuenta actualizado para su referencia. Quedamos atentos para coordinar el pago cuando guste.\n\n¡Gracias por su confianza!\n\n*Sierraluna Club Residencial*${firma}`;
+    cuerpo=`Hola ${primerNombre}, ¿cómo está? Le saluda Carolina, del área de cartera de *Sierraluna Club Residencial*.\n\nLe escribo para recordarle con cariño que su próxima cuota del lote${lote} vence ${vence}, por un valor de *${montoCuota}*.\n\nLe adjunto su estado de cuenta actualizado para su referencia. Quedo atenta para coordinar el pago cuando guste.\n\n¡Un abrazo!\n\nCarolina · Sierraluna Club Residencial`;
   }
   return cuerpo;
 }
