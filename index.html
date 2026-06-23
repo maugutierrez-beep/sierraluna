@@ -406,6 +406,33 @@
   @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,1fr)}.mini{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}.charts2{grid-template-columns:1fr}.lower{grid-template-columns:1fr}.hbtns{position:static;margin-top:16px}}
 </style>
 
+<style>
+  #loginGate{position:fixed;inset:0;z-index:99999;background:linear-gradient(150deg,#0f2540 0%,#1A3352 60%,#20406a 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:'Montserrat',sans-serif}
+  #loginGate.hidden{display:none}
+  .lg-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:38px 34px;width:330px;max-width:90vw;text-align:center;backdrop-filter:blur(6px);box-shadow:0 18px 50px rgba(0,0,0,.35)}
+  .lg-card img{width:170px;margin-bottom:10px;opacity:.96}
+  .lg-sub{color:#aab8cc;font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:24px;font-weight:600}
+  .lg-card input{width:100%;box-sizing:border-box;padding:13px 15px;border-radius:10px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.95);color:#1A3352;font-size:15px;font-family:inherit;text-align:center;letter-spacing:.04em;outline:none;transition:.15s}
+  .lg-card input:focus{border-color:#EF7746;box-shadow:0 0 0 3px rgba(239,119,70,.25)}
+  .lg-btn{width:100%;margin-top:14px;padding:13px;border:none;border-radius:10px;background:#EF7746;color:#fff;font-weight:700;font-size:14px;font-family:inherit;letter-spacing:.04em;cursor:pointer;transition:.15s}
+  .lg-btn:hover{background:#e2622f}
+  .lg-err{color:#ffb9a3;font-size:12.5px;margin-top:13px;min-height:17px;font-weight:600}
+  .lg-foot{color:#7d8da6;font-size:10.5px;margin-top:22px}
+  .logout-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 13px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+  .logout-btn:hover{background:rgba(255,255,255,.22)}
+</style>
+
+<div id="loginGate">
+  <div class="lg-card">
+    <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNjAiPjx0ZXh0IHg9IjEwMCIgeT0iMzgiIGZvbnQtZmFtaWx5PSJNb250c2VycmF0LHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGxldHRlci1zcGFjaW5nPSI2IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5TSUVSUkFMVU5BPC90ZXh0Pjwvc3ZnPg==" alt="Sierraluna">
+    <div class="lg-sub">Control de Recaudo</div>
+    <input type="password" id="lg_pass" placeholder="Clave de acceso" autocomplete="current-password" onkeydown="if(event.key==='Enter')tryLogin()">
+    <button class="lg-btn" onclick="tryLogin()">Entrar</button>
+    <div class="lg-err" id="lg_err"></div>
+    <div class="lg-foot">Acceso restringido · Sierraluna Group S.A.S.</div>
+  </div>
+</div>
+
 <div class="wrap">
   <header class="top">
     <div class="brand">
@@ -420,6 +447,7 @@
       <button class="btn-ghost" onclick="exportCSV()">Exportar CSV</button>
       <button class="btn-ghost" onclick="exportJSON()">Exportar JSON</button>
       <button class="btn-ghost" onclick="importJSON()">Importar JSON</button>
+      <button class="logout-btn" onclick="logout()" title="Cerrar sesión">⨯ Salir</button>
     </div>
   </header>
 
@@ -3301,6 +3329,57 @@ function generatePDF(buyerId){
   }
 }
 
+/* ---------- Login / control de acceso ---------- */
+// Clave compartida (hasteada con SHA-256). Para cambiarla, genera un nuevo hash
+// de la clave deseada y reemplaza el valor de PASS_HASH.
+const PASS_HASH="2899dbe6b6156ea56066484a320b9294d8721218ae08c557ee976a531fb54ee5";
+const SESSION_KEY="sl_auth_ok";
+let _appBooted=false;
+
+async function sha256(txt){
+  const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function tryLogin(){
+  const inp=document.getElementById("lg_pass");
+  const err=document.getElementById("lg_err");
+  const val=inp.value;
+  if(!val){err.textContent="Ingresa la clave.";return;}
+  const h=await sha256(val);
+  if(h===PASS_HASH){
+    try{sessionStorage.setItem(SESSION_KEY,"1");}catch(_){}
+    err.textContent="";
+    unlockApp();
+  }else{
+    err.textContent="Clave incorrecta.";
+    inp.value=""; inp.focus();
+  }
+}
+
+function unlockApp(){
+  const gate=document.getElementById("loginGate");
+  if(gate) gate.classList.add("hidden");
+  if(!_appBooted){
+    _appBooted=true;
+    (async()=>{ await load(); render(); showTab(activeTab); setSaveStatus("saved"); })();
+  }
+}
+
+function logout(){
+  try{sessionStorage.removeItem(SESSION_KEY);}catch(_){}
+  location.reload();
+}
+
 /* ---------- Boot ---------- */
-(async()=>{ await (async()=>{ await load(); render(); showTab(activeTab); setSaveStatus("saved"); })(); })();
+(function(){
+  let authed=false;
+  try{ authed=sessionStorage.getItem(SESSION_KEY)==="1"; }catch(_){}
+  if(authed){
+    unlockApp();
+  }else{
+    // Mantener el gate visible y enfocar el campo de clave
+    setTimeout(()=>{const i=document.getElementById("lg_pass");if(i)i.focus();},120);
+  }
+})();
 </script>
