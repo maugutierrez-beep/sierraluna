@@ -99,6 +99,19 @@
   .cwrap{position:relative;height:230px}
   .charts2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
   .cwrap.tall{height:300px}
+  .exec-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  @media(max-width:1000px){.exec-kpis{grid-template-columns:repeat(2,1fr)}}
+  .ek-card{border:1px solid var(--line-soft);border-radius:13px;padding:15px 17px;background:#fff;border-left:4px solid var(--navy)}
+  .ek-card.danger{border-left-color:#b3352b;background:#fdf6f5}
+  .ek-card.warn{border-left-color:#e08a3c;background:#fffaf3}
+  .ek-card.good{border-left-color:#2a7d4f;background:#f4faf6}
+  .ek-card.accent{border-left-color:#274a72}
+  .ek-l{font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .ek-v{font-size:23px;font-weight:700;color:var(--navy);margin:5px 0 3px;letter-spacing:-.01em}
+  .ek-card.danger .ek-v{color:#b3352b}
+  .ek-card.warn .ek-v{color:#c4702a}
+  .ek-card.good .ek-v{color:#2a7d4f}
+  .ek-s{font-size:10.8px;color:var(--ink-soft);line-height:1.35}
   .promstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
   .ps-card{background:var(--card);border:1px solid var(--line-soft);border-radius:13px;box-shadow:var(--shadow);padding:14px 16px}
   .ps-card.acc{background:#fff8f4;border-color:#f3c9b6}
@@ -514,6 +527,18 @@
     <div class="chartcard"><h3>Ventas acumuladas</h3><div class="h3sub">Crecimiento del valor vendido en el tiempo</div><div class="cwrap tall"><canvas id="ch_ventasacum"></canvas></div></div>
   </div>
   <div class="promstrip" data-section="resumen" id="promstrip"></div>
+
+  <!-- Panel ejecutivo: salud de cartera y desempeño -->
+  <div class="panel" data-section="resumen">
+    <div class="panel-h">
+      <div><h2>Panel ejecutivo · Cartera y desempeño</h2><div class="desc">Indicadores clave para la toma de decisiones: salud de la cartera, proyección de recaudo y absorción de inventario.</div></div>
+    </div>
+    <div class="exec-kpis" id="exec_kpis"></div>
+    <div class="charts2" style="margin-top:16px">
+      <div class="chartcard"><h3>Antigüedad de la cartera vencida</h3><div class="h3sub">Mora clasificada por días de vencimiento (aging)</div><div class="cwrap tall"><canvas id="ch_aging"></canvas></div></div>
+      <div class="chartcard"><h3>Proyección de recaudo</h3><div class="h3sub">Lo que debería ingresar en los próximos meses, según los planes</div><div class="cwrap tall"><canvas id="ch_proyeccion"></canvas></div></div>
+    </div>
+  </div>
 
   <!-- Table -->
   <div class="panel" data-section="compradores">
@@ -2760,6 +2785,108 @@ function drawCharts(){
 
   // ── Tira de indicadores de promedio mensual ──
   renderPromStrip(ventasMes);
+  renderExecPanel();
+}
+
+// Panel ejecutivo: aging de cartera, proyección de recaudo, efectividad y absorción
+function renderExecPanel(){
+  const kpiEl=document.getElementById("exec_kpis");
+  if(!kpiEl) return;
+  const hoy=new Date().toISOString().slice(0,10);
+  const MS=864e5;
+  const hoyD=new Date();
+
+  // Aging de mora por antigüedad + proyección futura + efectividad
+  const buckets={"0-30":0,"31-60":0,"61-90":0,"+90":0};
+  const futuro={};
+  let totalExigible=0, totalRecaudadoExig=0, totalMora=0;
+
+  DB.buyers.forEach(b=>{
+    if(b.code==="PD"||!b.total) return;
+    const plan=(b.plan||[]).slice().sort((x,y)=>x.date<y.date?-1:1);
+    const paid=abonado(b);
+    let cum=0, exigible=0;
+    plan.forEach(c=>{
+      const amt=+c.amount||0; cum+=amt;
+      const uncov=Math.max(0,Math.min(amt,cum-paid));
+      if(c.date<=hoy){
+        exigible+=amt;
+        if(uncov>0.5){
+          totalMora+=uncov;
+          const dias=Math.floor((hoyD-new Date(c.date))/MS);
+          if(dias<=30) buckets["0-30"]+=uncov;
+          else if(dias<=60) buckets["31-60"]+=uncov;
+          else if(dias<=90) buckets["61-90"]+=uncov;
+          else buckets["+90"]+=uncov;
+        }
+      }else if(uncov>0.5){
+        const mo=c.date.slice(0,7);
+        futuro[mo]=(futuro[mo]||0)+uncov;
+      }
+    });
+    totalExigible+=exigible;
+    totalRecaudadoExig+=Math.min(paid,exigible);
+  });
+
+  const efectividad = totalExigible>0 ? totalRecaudadoExig/totalExigible*100 : 0;
+  const moraAlta = buckets["+90"];
+  const pctMoraAlta = totalMora>0 ? moraAlta/totalMora*100 : 0;
+
+  // Absorción
+  const ventas=DB.buyers.filter(b=>b.code!=="PD"&&b.total&&b.iso).map(b=>b.iso).sort();
+  let absorcion=0, agotamiento=0;
+  const disp=(DB.availLots||[]).length+(DB.availLots2||[]).length;
+  if(ventas.length){
+    const prim=new Date(ventas[0]);
+    const meses=(hoyD.getFullYear()-prim.getFullYear())*12+(hoyD.getMonth()-prim.getMonth())+1;
+    absorcion=ventas.length/meses;
+    agotamiento=absorcion>0?Math.round(disp/absorcion):0;
+  }
+
+  // Próximo mes con recaudo proyectado
+  const mesesFut=Object.keys(futuro).sort();
+  const proxMes=mesesFut.find(m=>m>=hoy.slice(0,7));
+  const proxRecaudo=proxMes?futuro[proxMes]:0;
+
+  const MN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const fmtMes=m=>{const[y,mm]=m.split('-');return MN[+mm-1]+' '+y;};
+
+  // KPI cards
+  const kpis=[
+    {l:"Mora total",v:moneyShort(totalMora),s:`${pctMoraAlta.toFixed(0)}% es de alto riesgo (+90 días)`,cls:totalMora>0?"danger":"good"},
+    {l:"Efectividad de cobranza",v:efectividad.toFixed(1)+"%",s:"de lo exigible ya fue recaudado",cls:efectividad>=85?"good":efectividad>=70?"warn":"danger"},
+    {l:"Recaudo proyectado",v:moneyShort(proxRecaudo),s:proxMes?`esperado para ${fmtMes(proxMes)}`:"sin datos",cls:"accent"},
+    {l:"Velocidad de absorción",v:absorcion.toFixed(1)+" lotes/mes",s:`${disp} disponibles · se agotan en ~${agotamiento} meses`,cls:"accent"},
+  ];
+  kpiEl.innerHTML=kpis.map(k=>`<div class="ek-card ${k.cls||''}"><div class="ek-l">${k.l}</div><div class="ek-v">${k.v}</div><div class="ek-s">${k.s}</div></div>`).join('');
+
+  // Gráfico aging
+  if(charts.aging) charts.aging.destroy();
+  const agingCanvas=document.getElementById("ch_aging");
+  if(agingCanvas){
+    charts.aging=new Chart(agingCanvas,{type:"bar",
+      data:{labels:["0-30 días","31-60 días","61-90 días","+90 días"],
+        datasets:[{data:[buckets["0-30"],buckets["31-60"],buckets["61-90"],buckets["+90"]],
+          backgroundColor:["#e8b04b","#e08a3c","#d4663a","#b3352b"],borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.raw)}}},
+        scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
+          x:{grid:{display:false},ticks:{font:{size:10}}}}}});
+  }
+
+  // Gráfico proyección (próximos 8 meses)
+  if(charts.proyeccion) charts.proyeccion.destroy();
+  const proyCanvas=document.getElementById("ch_proyeccion");
+  if(proyCanvas){
+    const futKeys=mesesFut.filter(m=>m>=hoy.slice(0,7)).slice(0,8);
+    charts.proyeccion=new Chart(proyCanvas,{type:"bar",
+      data:{labels:futKeys.map(fmtMes),
+        datasets:[{data:futKeys.map(m=>futuro[m]),backgroundColor:"#2a6b4f",borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.raw)}}},
+        scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
+          x:{grid:{display:false},ticks:{font:{size:9},maxRotation:55,minRotation:55}}}}});
+  }
 }
 
 function renderPromStrip(vm){
