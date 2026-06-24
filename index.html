@@ -136,6 +136,8 @@
   .iact{width:30px;height:30px;padding:0;font-size:12px;border-radius:8px;border:none;background:#eef1f5;color:var(--navy);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;transition:background .12s;font-weight:600}
   .iact:hover{background:#dde3ea}
   .iact.pdf{font-size:9.5px;font-weight:700;letter-spacing:.02em;width:auto;padding:0 9px}
+  .iact.todo{font-size:9.5px;font-weight:700;letter-spacing:.02em;width:auto;padding:0 9px;background:var(--navy);color:#fff}
+  .iact.todo:hover{background:#16293f}
   tr.zerorow td{background:#fbf3ef}
   /* Lower grid */
   .lower{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
@@ -789,7 +791,7 @@
     </div>
     <div class="modal-f">
       <span class="savebar" id="pay_sum"></span>
-      <div><button class="btn-pdf" onclick="generatePDF(document.getElementById('pay_buyer').value)" style="margin-right:8px">↓ Estado de cuenta</button><button class="btn-line" onclick="closeAll()">Cerrar</button><button class="btn-gold" onclick="savePayment()">Guardar abono</button></div>
+      <div><button class="btn-pdf" onclick="generatePDF(document.getElementById('pay_buyer').value)" style="margin-right:8px">↓ Estado de cuenta</button><button class="btn-line" onclick="closeAll()">Cerrar</button><button class="btn-line" onclick="savePayment(false)" style="margin-right:6px">Guardar abono</button><button class="btn-gold" onclick="savePayment(true)">Guardar y emitir recibo</button></div>
     </div>
   </div>
 </div>
@@ -1539,6 +1541,7 @@ function render(){
         <button class="iact" title="Registrar abono" onclick="openPayment('${b.id}')">＄</button>
         <button class="iact" title="Editar" onclick="openBuyer('${b.id}')">✎</button>
         <button class="iact pdf" title="Estado de cuenta PDF" onclick="generatePDF('${b.id}')">PDF</button>
+        <button class="iact todo" title="Descargar estado de cuenta + todos los recibos en un PDF" onclick="descargarTodo('${b.id}')">⬇ Todo</button>
       </div></td>`;
     tb.appendChild(tr);
   });
@@ -2422,9 +2425,10 @@ function numToWords(n){
   return res.trim();
 }
 
-function generateRecibo(buyerId,payIdx){
-  const b=DB.buyers.find(x=>x.id===buyerId);if(!b)return;
-  const p=(b.payments||[])[payIdx];if(!p)return;
+function generateRecibo(buyerId,payIdx,opts){
+  opts=opts||{};
+  const b=DB.buyers.find(x=>x.id===buyerId);if(!b)return null;
+  const p=(b.payments||[])[payIdx];if(!p)return null;
   // ── NUMERACIÓN PERMANENTE Y ÚNICA POR PAGO ──────────────────
   // El número se asigna UNA sola vez por pago y se guarda en p.recibo.
   // Reimprimir nunca consume un número nuevo ni cambia el existente.
@@ -2440,7 +2444,8 @@ function generateRecibo(buyerId,payIdx){
     save();
   }
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const doc=opts.doc || new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  if(opts.doc && opts.addPage!==false) doc.addPage();
   const W=210;
   const navy=[26,51,82],coral=[183,107,55],gr=[100,100,100],lg=[220,225,235];
 
@@ -2543,13 +2548,15 @@ function generateRecibo(buyerId,payIdx){
   doc.setFont('helvetica','italic');doc.setFontSize(7);doc.setTextColor(...gr);
   doc.text('Sierraluna Group S.A.S. · NIT 901.814.712-8 · Documento generado electrónicamente · '+new Date().toLocaleString('es-CO'),W/2,y+5,{align:'center'});
 
-  // ── Show PDF viewer ───────────────────────────────────────
+  // ── Show PDF viewer (o devolver doc en modo merge) ────────
   const fn='Recibo_'+String(num).padStart(4,'0')+'_'+b.code+'.pdf';
+  if(opts.doc){ return doc; }  // modo merge: no abrir visor, solo devolver
   const uri=doc.output('datauristring');
   document.getElementById('pdf_frame').src=uri;
   document.getElementById('pdf_dl').href=uri;document.getElementById('pdf_dl').download=fn;
   document.getElementById('pdf_label').textContent=fn;
   document.getElementById('ov_pdf').style.display='flex';
+  return doc;
 }
 
 function openEditMovement(buyerId, payIdx){
@@ -2938,7 +2945,7 @@ function renderHist(){
   document.getElementById("pay_sum").textContent=`Abonado: ${money(ab)} · Saldo: ${money(b.total-ab)} · ${(pct(b)*100).toFixed(0)}%`;
 }
 
-async function savePayment(){
+async function savePayment(emitirRecibo){
   const id=document.getElementById("pay_buyer").value;
   const b=DB.buyers.find(x=>x.id===id);if(!b)return;
   const amt=parseNum(document.getElementById("pay_amount").value);
@@ -2961,12 +2968,20 @@ async function savePayment(){
         else{ payment.hasVoucher=true; payment.voucherData=dataUrl; } // inline fallback
       }
     }catch(e){ console.warn('Voucher save error:',e); }
-    if(saveBtn){saveBtn.textContent='Guardar abono';saveBtn.disabled=false;}
+    if(saveBtn){saveBtn.textContent='Guardar y emitir recibo';saveBtn.disabled=false;}
   }
 
   if(!b.payments)b.payments=[];
   b.payments.push(payment);
-  save();closeAll();render();
+  const nuevoIdx=b.payments.length-1;
+  save();
+  if(emitirRecibo){
+    // Emite el recibo del pago recién registrado y abre el visor para imprimir/descargar
+    closeAll(); render();
+    setTimeout(()=>generateRecibo(b.id,nuevoIdx),120);
+  }else{
+    closeAll();render();
+  }
 }
 
 /* ---------- Modals: buyer ---------- */
@@ -3324,12 +3339,13 @@ function showTab(name){
 }
 
 /* ---- Estado de Cuenta PDF ---- */
-function generatePDF(buyerId){
+function generatePDF(buyerId,opts){
+  opts=opts||{};
   const b=DB.buyers.find(x=>x.id===buyerId);
-  if(!b){ alert('Comprador no encontrado.'); return; }
+  if(!b){ if(!opts.doc) alert('Comprador no encontrado.'); return null; }
   if(typeof window.jspdf==='undefined'){
-    alert('La librería PDF todavía está cargando. Espera un momento e intenta de nuevo.');
-    return;
+    if(!opts.doc) alert('La librería PDF todavía está cargando. Espera un momento e intenta de nuevo.');
+    return null;
   }
   // Visual feedback on clicked button
   const btn=document.querySelector(`[onclick="generatePDF('${buyerId}')"]`);
@@ -3337,7 +3353,8 @@ function generatePDF(buyerId){
   const restoreBtn=()=>{ if(btn){ btn.textContent='↓ PDF'; btn.disabled=false; } };
   try {
   const {jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const doc=opts.doc || new jsPDF({unit:'mm',format:'a4'});
+  if(opts.doc && opts.addPage!==false) doc.addPage();
   const W=210,M=18,navy=[26,51,82],coral=[239,119,70],gray=[90,100,112],lgray=[230,233,238];
   const COP=v=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v||0);
   const todStr=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'});
@@ -3475,8 +3492,9 @@ function generatePDF(buyerId){
   doc.text('Este estado de cuenta tiene carácter informativo y puede estar sujeto a ajustes.',W/2,fY+5.5,{align:'center'});
   doc.text('Sierraluna Group S.A.S. · Valledupar, Colombia · NIT 901814712',W/2,fY+10,{align:'center'});
 
-  // ── Show PDF inline (sandbox-safe) ────────────────────
+  // ── Show PDF inline (sandbox-safe) o devolver doc en merge ──
   const fn=`EstadoCuenta_${b.code}_${b.name.replace(/[^a-zA-Z0-9]/g,'_').slice(0,20)}.pdf`;
+  if(opts.doc){ restoreBtn(); return doc; }  // modo merge
   const dataUri = doc.output('datauristring');
 
   // Load into iframe viewer
@@ -3503,6 +3521,41 @@ function generatePDF(buyerId){
   } catch(globalErr) {
     restoreBtn();
     alert('Error al generar el PDF: ' + globalErr.message);
+  }
+}
+
+// Descarga en un solo PDF: estado de cuenta + todos los recibos de caja del comprador
+function descargarTodo(buyerId){
+  const b=DB.buyers.find(x=>x.id===buyerId);
+  if(!b){ alert('Comprador no encontrado.'); return; }
+  if(typeof window.jspdf==='undefined'){ alert('La librería PDF está cargando, intenta de nuevo en un momento.'); return; }
+  const pagos=(b.payments||[]);
+  if(!pagos.length){ alert('Este comprador no tiene pagos registrados.'); return; }
+
+  try{
+    // 1) Crear el doc base y poner el estado de cuenta como primera página
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({unit:'mm',format:'a4'});
+    generatePDF(buyerId,{doc:doc,addPage:false});  // primera página, sin addPage
+
+    // 2) Un recibo por cada pago (en orden cronológico)
+    const idxOrden=pagos.map((p,i)=>({i,date:p.date||''}))
+                        .sort((a,c)=>a.date<c.date?-1:(a.date>c.date?1:0));
+    idxOrden.forEach(({i})=>{
+      generateRecibo(buyerId,i,{doc:doc,addPage:true});
+    });
+
+    // 3) Descargar el PDF combinado
+    const fn=`Sierraluna_${b.code}_EstadoCuenta_y_Recibos.pdf`;
+    const uri=doc.output('datauristring');
+    document.getElementById('pdf_frame').src=uri;
+    const dl=document.getElementById('pdf_dl');
+    dl.href=uri; dl.download=fn;
+    document.getElementById('pdf_label').textContent=fn;
+    document.getElementById('ov_pdf').style.display='flex';
+    save(); // por si se asignaron números de recibo nuevos
+  }catch(err){
+    alert('Error al generar el documento combinado: '+err.message);
   }
 }
 
