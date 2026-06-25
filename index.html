@@ -112,6 +112,34 @@
   .ek-card.warn .ek-v{color:#c4702a}
   .ek-card.good .ek-v{color:#2a7d4f}
   .ek-s{font-size:10.8px;color:var(--ink-soft);line-height:1.35}
+  /* Comparativo de etapas */
+  .sc-head{display:flex;align-items:center;padding:0 0 10px;border-bottom:1px solid var(--line-soft);margin-bottom:4px}
+  .sc-head>div:first-child{flex:0 0 150px}
+  .sc-tag{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+  .sc-tag.e1{color:#274a72}.sc-tag.e2{color:#c4702a}
+  .sc-row{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+  .sc-label{flex:0 0 150px;font-size:12.5px;font-weight:600;color:var(--ink)}
+  .sc-vals{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .sc-e1,.sc-e2{display:flex;align-items:center;gap:10px}
+  .sc-bar{flex:1;height:8px;background:#eef1f5;border-radius:5px;overflow:hidden;min-width:40px}
+  .sc-bar span{display:block;height:100%;background:#274a72;border-radius:5px}
+  .sc-bar.e2 span{background:#d98a40}
+  .sc-e1 b,.sc-e2 b{font-size:13px;color:var(--navy);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:70px;text-align:right}
+  /* Mapa de calor */
+  .hm-scroll{overflow-x:auto;padding-bottom:6px}
+  .hm-table{border-collapse:separate;border-spacing:2px;font-size:10px}
+  .hm-table th.hm-name{position:sticky;left:0;background:var(--card);z-index:2;text-align:left;padding:4px 8px;font-size:10px;color:var(--ink-soft);min-width:160px}
+  .hm-table th.hm-mes{padding:3px 2px;color:var(--ink-soft);font-weight:600;font-size:8.5px;white-space:nowrap;text-align:center}
+  .hm-table td.hm-name{position:sticky;left:0;background:var(--card);z-index:1;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap}
+  .hm-table td.hm-name small{display:block;font-size:9px;color:var(--ink-soft);font-weight:500}
+  .hm-cell{width:17px;height:17px;border-radius:3px;padding:0}
+  .hm-pagado{background:#3fa46a}
+  .hm-mora{background:#d4493c}
+  .hm-futuro{background:#dbe3ec}
+  .hm-na{background:#f0f2f5}
+  .hm-legend{display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap}
+  .hm-legend span{display:flex;align-items:center;gap:6px}
+  .hm-legend i{width:13px;height:13px;border-radius:3px;display:inline-block}
   .promstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
   .ps-card{background:var(--card);border:1px solid var(--line-soft);border-radius:13px;box-shadow:var(--shadow);padding:14px 16px}
   .ps-card.acc{background:#fff8f4;border-color:#f3c9b6}
@@ -538,6 +566,22 @@
       <div class="chartcard"><h3>Antigüedad de la cartera vencida</h3><div class="h3sub">Mora clasificada por días de vencimiento (aging)</div><div class="cwrap tall"><canvas id="ch_aging"></canvas></div></div>
       <div class="chartcard"><h3>Proyección de recaudo</h3><div class="h3sub">Lo que debería ingresar en los próximos meses, según los planes</div><div class="cwrap tall"><canvas id="ch_proyeccion"></canvas></div></div>
     </div>
+  </div>
+
+  <!-- Comparativo Etapa 1 vs Etapa 2 -->
+  <div class="panel" data-section="resumen">
+    <div class="panel-h">
+      <div><h2>Etapa 1 vs Etapa 2</h2><div class="desc">Desempeño comparado de ventas, recaudo y absorción entre las dos etapas del proyecto.</div></div>
+    </div>
+    <div id="stage_compare"></div>
+  </div>
+
+  <!-- Mapa de calor de comportamiento de pagos -->
+  <div class="panel" data-section="resumen">
+    <div class="panel-h">
+      <div><h2>Comportamiento de pagos</h2><div class="desc">Cada fila es un comprador y cada columna un mes. El color indica si pagó (verde), no pagó lo esperado (rojo) o no tenía cuota (gris).</div></div>
+    </div>
+    <div id="payment_heatmap"></div>
   </div>
 
   <!-- Table -->
@@ -2887,9 +2931,105 @@ function renderExecPanel(){
         scales:{y:{ticks:{callback:v=>moneyShort(v),font:{size:9}},grid:{color:'rgba(0,0,0,.05)'}},
           x:{grid:{display:false},ticks:{font:{size:9},maxRotation:55,minRotation:55}}}}});
   }
+  renderStageCompare();
+  renderPaymentHeatmap();
 }
 
-function renderPromStrip(vm){
+// Comparativo Etapa 1 vs Etapa 2
+function renderStageCompare(){
+  const el=document.getElementById("stage_compare"); if(!el) return;
+  const calc=(etapa)=>{
+    const bs=DB.buyers.filter(b=>b.code!=="PD"&&b.total&&((b.stage||1)===etapa));
+    const vendido=bs.reduce((s,b)=>s+b.total,0);
+    const ab=bs.reduce((s,b)=>s+abonado(b),0);
+    const m2=bs.reduce((s,b)=>s+(+b.tam||0),0);
+    const disp=etapa===1?(DB.availLots||[]).length:(DB.availLots2||[]).length;
+    return {lotes:bs.length,vendido,ab,m2,disp,pct:vendido?ab/vendido*100:0};
+  };
+  const e1=calc(1), e2=calc(2);
+  const maxVend=Math.max(e1.vendido,e2.vendido)||1;
+  const row=(label,v1,v2,fmt)=>{
+    return `<div class="sc-row">
+      <div class="sc-label">${label}</div>
+      <div class="sc-vals">
+        <div class="sc-e1"><div class="sc-bar"><span style="width:${fmt.bar?(v1/maxVend*100):100}%"></span></div><b>${fmt.f(v1)}</b></div>
+        <div class="sc-e2"><div class="sc-bar e2"><span style="width:${fmt.bar?(v2/maxVend*100):100}%"></span></div><b>${fmt.f(v2)}</b></div>
+      </div></div>`;
+  };
+  const money_=v=>moneyShort(v), num_=v=>NUM.format(Math.round(v)), pct_=v=>v.toFixed(1)+"%", plain=v=>v;
+  el.innerHTML=`
+    <div class="sc-head"><div></div><div class="sc-vals"><div class="sc-tag e1">Etapa 1</div><div class="sc-tag e2">Etapa 2</div></div></div>
+    ${row("Lotes vendidos",e1.lotes,e2.lotes,{f:plain,bar:false})}
+    ${row("Valor vendido",e1.vendido,e2.vendido,{f:money_,bar:true})}
+    ${row("Recaudado",e1.ab,e2.ab,{f:money_,bar:true})}
+    ${row("% Recaudo",e1.pct,e2.pct,{f:pct_,bar:false})}
+    ${row("m² vendidos",e1.m2,e2.m2,{f:num_,bar:false})}
+    ${row("Lotes disponibles",e1.disp,e2.disp,{f:plain,bar:false})}
+  `;
+}
+
+// Mapa de calor de comportamiento de pagos (comprador x mes)
+function renderPaymentHeatmap(){
+  const el=document.getElementById("payment_heatmap"); if(!el) return;
+  const hoy=new Date().toISOString().slice(0,10);
+  // Compradores con plan, ordenados por código
+  const bs=DB.buyers.filter(b=>b.code!=="PD"&&b.total&&(b.plan||[]).length)
+    .sort((a,c)=>(a.code||'').localeCompare(c.code||''));
+  if(!bs.length){ el.innerHTML='<div style="padding:16px;color:var(--ink-soft)">No hay compradores con plan de pagos para mostrar.</div>'; return; }
+
+  // Determinar rango de meses (desde primera cuota hasta hoy)
+  let minM=null,maxM=hoy.slice(0,7);
+  bs.forEach(b=>(b.plan||[]).forEach(c=>{ if(c.date){const m=c.date.slice(0,7); if(!minM||m<minM)minM=m;} }));
+  if(!minM) minM=maxM;
+  // Lista de meses
+  const meses=[];
+  let [y,m]=minM.split('-').map(Number);
+  const [my,mm]=maxM.split('-').map(Number);
+  while(y<my||(y===my&&m<=mm)){ meses.push(`${y}-${String(m).padStart(2,'0')}`); m++; if(m>12){m=1;y++;} }
+  const MN=['E','F','M','A','M','J','J','A','S','O','N','D'];
+  const mesLabel=k=>{const[yy,mm]=k.split('-');return MN[+mm-1]+yy.slice(2);};
+
+  // Para cada comprador y mes: estado de pago
+  // Estado: 'pagado' si cubrió la cuota de ese mes, 'mora' si tenía cuota y no la cubrió, 'na' si no tenía cuota
+  const estadoMes=(b,mes)=>{
+    const plan=(b.plan||[]).slice().sort((x,y)=>x.date<y.date?-1:1);
+    const cuotasMes=plan.filter(c=>c.date && c.date.slice(0,7)===mes);
+    if(!cuotasMes.length) return 'na';
+    // ¿El acumulado de pagos cubre el acumulado de cuotas hasta el fin de ese mes?
+    const finMes=mes+'-31';
+    let cuotasHasta=0;
+    plan.forEach(c=>{ if(c.date && c.date<=finMes) cuotasHasta+=(+c.amount||0); });
+    const pagosHasta=(b.payments||[]).filter(p=>p.date && p.date<=finMes)
+      .reduce((s,p)=>s+(+p.amount||0),0);
+    if(pagosHasta>=cuotasHasta-0.5) return 'pagado';
+    // Si el mes aún no vence, es 'pendiente' (futuro), no mora
+    if(mes>hoy.slice(0,7)) return 'futuro';
+    return 'mora';
+  };
+
+  let html='<div class="hm-scroll"><table class="hm-table"><thead><tr><th class="hm-name">Comprador</th>';
+  meses.forEach(mk=>{ html+=`<th class="hm-mes" title="${mk}">${mesLabel(mk)}</th>`; });
+  html+='</tr></thead><tbody>';
+  bs.forEach(b=>{
+    const nombre=b.name.length>22?b.name.slice(0,22)+'…':b.name;
+    html+=`<tr><td class="hm-name" title="${esc(b.name)}">${esc(nombre)}<small>${b.code}</small></td>`;
+    meses.forEach(mk=>{
+      const est=estadoMes(b,mk);
+      const cls={pagado:'hm-pagado',mora:'hm-mora',na:'hm-na',futuro:'hm-futuro'}[est];
+      const tip={pagado:'Al día',mora:'En mora',na:'Sin cuota',futuro:'Cuota futura'}[est];
+      html+=`<td class="hm-cell ${cls}" title="${b.code} · ${mk}: ${tip}"></td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  html+=`<div class="hm-legend">
+    <span><i class="hm-pagado"></i> Al día</span>
+    <span><i class="hm-mora"></i> En mora</span>
+    <span><i class="hm-futuro"></i> Cuota futura</span>
+    <span><i class="hm-na"></i> Sin cuota</span>
+  </div>`;
+  el.innerHTML=html;
+}
   const el=document.getElementById("promstrip"); if(!el) return;
   const total=vm.data.reduce((a,b)=>a+b,0);
   const nMeses=vm.data.length;
