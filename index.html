@@ -3030,6 +3030,8 @@ function renderPaymentHeatmap(){
   </div>`;
   el.innerHTML=html;
 }
+
+function renderPromStrip(vm){
   const el=document.getElementById("promstrip"); if(!el) return;
   const total=vm.data.reduce((a,b)=>a+b,0);
   const nMeses=vm.data.length;
