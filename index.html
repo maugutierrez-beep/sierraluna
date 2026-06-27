@@ -129,12 +129,12 @@
   /* Mapa de calor */
   .hm-scroll{overflow-x:auto;padding-bottom:6px}
   #payment_heatmap{padding:2px 18px 16px}
-  .hm-table{border-collapse:separate;border-spacing:2px;font-size:10px;width:auto}
-  .hm-table th.hm-name{position:sticky;left:0;background:var(--card);z-index:2;text-align:left;padding:4px 8px;font-size:10px;color:var(--ink-soft);min-width:190px}
+  .hm-table{border-collapse:separate;border-spacing:2px;font-size:10px;width:100%}
+  .hm-table th.hm-name{position:sticky;left:0;background:var(--card);z-index:2;text-align:left;padding:4px 8px;font-size:10px;color:var(--ink-soft);width:1%;white-space:nowrap}
   .hm-table th.hm-mes{padding:3px 2px;color:var(--ink-soft);font-weight:600;font-size:8.5px;white-space:nowrap;text-align:center}
-  .hm-table td.hm-name{position:sticky;left:0;background:var(--card);z-index:1;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+  .hm-table td.hm-name{position:sticky;left:0;background:var(--card);z-index:1;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap;width:1%}
   .hm-table td.hm-name small{display:block;font-size:9px;color:var(--ink-soft);font-weight:500}
-  .hm-cell{width:17px;height:17px;border-radius:3px;padding:0}
+  .hm-cell{min-width:24px;height:22px;border-radius:3px;padding:0}
   .hm-pagado{background:#3fa46a}
   .hm-mora{background:#d4493c}
   .hm-futuro{background:#dbe3ec}
@@ -3159,7 +3159,7 @@ function renderPaymentHeatmap(){
   meses.forEach(mk=>{ html+=`<th class="hm-mes" title="${mk}">${mesLabel(mk)}</th>`; });
   html+='</tr></thead><tbody>';
   bs.forEach(b=>{
-    const nombre=b.name.length>28?b.name.slice(0,28)+'…':b.name;
+    const nombre=b.name;
     html+=`<tr><td class="hm-name" title="${esc(b.name)}">${esc(nombre)}<small>${b.code}</small></td>`;
     meses.forEach(mk=>{
       const est=estadoMes(b,mk);
