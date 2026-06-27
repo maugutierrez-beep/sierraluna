@@ -128,16 +128,18 @@
   .sc-e1 b,.sc-e2 b{font-size:13px;color:var(--navy);font-variant-numeric:tabular-nums;white-space:nowrap;min-width:70px;text-align:right}
   /* Mapa de calor */
   .hm-scroll{overflow-x:auto;padding-bottom:6px}
-  .hm-table{border-collapse:separate;border-spacing:2px;font-size:10px}
-  .hm-table th.hm-name{position:sticky;left:0;background:var(--card);z-index:2;text-align:left;padding:4px 8px;font-size:10px;color:var(--ink-soft);min-width:160px}
+  #payment_heatmap{padding:2px 18px 16px}
+  .hm-table{border-collapse:separate;border-spacing:2px;font-size:10px;width:auto}
+  .hm-table th.hm-name{position:sticky;left:0;background:var(--card);z-index:2;text-align:left;padding:4px 8px;font-size:10px;color:var(--ink-soft);min-width:190px}
   .hm-table th.hm-mes{padding:3px 2px;color:var(--ink-soft);font-weight:600;font-size:8.5px;white-space:nowrap;text-align:center}
-  .hm-table td.hm-name{position:sticky;left:0;background:var(--card);z-index:1;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap}
+  .hm-table td.hm-name{position:sticky;left:0;background:var(--card);z-index:1;padding:3px 8px;font-size:11px;font-weight:600;color:var(--navy);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
   .hm-table td.hm-name small{display:block;font-size:9px;color:var(--ink-soft);font-weight:500}
   .hm-cell{width:17px;height:17px;border-radius:3px;padding:0}
   .hm-pagado{background:#3fa46a}
   .hm-mora{background:#d4493c}
   .hm-futuro{background:#dbe3ec}
   .hm-na{background:#f0f2f5}
+.hm-abono{background:#88a6c4}
   .hm-legend{display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap}
   .hm-legend span{display:flex;align-items:center;gap:6px}
   .hm-legend i{width:13px;height:13px;border-radius:3px;display:inline-block}
@@ -644,7 +646,7 @@
   <!-- Mapa de calor de comportamiento de pagos -->
   <div class="panel" data-section="resumen">
     <div class="panel-h">
-      <div><h2>Comportamiento de pagos</h2><div class="desc">Cada fila es un comprador y cada columna un mes. El color indica si pagó (verde), no pagó lo esperado (rojo) o no tenía cuota (gris).</div></div>
+      <div><h2>Comportamiento de pagos</h2><div class="desc">Cada fila es un comprador y cada columna un mes. Verde = al día, rojo = en mora, azul = abono sin plan definido, gris = sin cuota.</div></div>
     </div>
     <div id="payment_heatmap"></div>
   </div>
@@ -3116,13 +3118,14 @@ function renderPaymentHeatmap(){
   const el=document.getElementById("payment_heatmap"); if(!el) return;
   const hoy=new Date().toISOString().slice(0,10);
   // Compradores con plan, ordenados por código
-  const bs=DB.buyers.filter(b=>b.code!=="PD"&&b.total&&(b.plan||[]).length)
+  const bs=DB.buyers.filter(b=>b.code!=="PD"&&b.total)
     .sort((a,c)=>(a.code||'').localeCompare(c.code||''));
   if(!bs.length){ el.innerHTML='<div style="padding:16px;color:var(--ink-soft)">No hay compradores con plan de pagos para mostrar.</div>'; return; }
 
   // Determinar rango de meses (desde primera cuota hasta hoy)
   let minM=null,maxM=hoy.slice(0,7);
   bs.forEach(b=>(b.plan||[]).forEach(c=>{ if(c.date){const m=c.date.slice(0,7); if(!minM||m<minM)minM=m;} }));
+  bs.forEach(b=>(b.payments||[]).forEach(p=>{ if(p.date){const m=p.date.slice(0,7); if(!minM||m<minM)minM=m;} }));
   if(!minM) minM=maxM;
   // Lista de meses
   const meses=[];
@@ -3136,6 +3139,8 @@ function renderPaymentHeatmap(){
   // Estado: 'pagado' si cubrió la cuota de ese mes, 'mora' si tenía cuota y no la cubrió, 'na' si no tenía cuota
   const estadoMes=(b,mes)=>{
     const plan=(b.plan||[]).slice().sort((x,y)=>x.date<y.date?-1:1);
+    const pagosMes=(b.payments||[]).filter(p=>p.date && p.date.slice(0,7)===mes);
+    if(!plan.length) return pagosMes.length?'abono':'na';
     const cuotasMes=plan.filter(c=>c.date && c.date.slice(0,7)===mes);
     if(!cuotasMes.length) return 'na';
     // ¿El acumulado de pagos cubre el acumulado de cuotas hasta el fin de ese mes?
@@ -3154,12 +3159,12 @@ function renderPaymentHeatmap(){
   meses.forEach(mk=>{ html+=`<th class="hm-mes" title="${mk}">${mesLabel(mk)}</th>`; });
   html+='</tr></thead><tbody>';
   bs.forEach(b=>{
-    const nombre=b.name.length>22?b.name.slice(0,22)+'…':b.name;
+    const nombre=b.name.length>28?b.name.slice(0,28)+'…':b.name;
     html+=`<tr><td class="hm-name" title="${esc(b.name)}">${esc(nombre)}<small>${b.code}</small></td>`;
     meses.forEach(mk=>{
       const est=estadoMes(b,mk);
-      const cls={pagado:'hm-pagado',mora:'hm-mora',na:'hm-na',futuro:'hm-futuro'}[est];
-      const tip={pagado:'Al día',mora:'En mora',na:'Sin cuota',futuro:'Cuota futura'}[est];
+      const cls={pagado:'hm-pagado',mora:'hm-mora',na:'hm-na',futuro:'hm-futuro',abono:'hm-abono'}[est];
+      const tip={pagado:'Al día',mora:'En mora',na:'Sin cuota',futuro:'Cuota futura',abono:'Abono (sin plan)'}[est];
       html+=`<td class="hm-cell ${cls}" title="${b.code} · ${mk}: ${tip}"></td>`;
     });
     html+='</tr>';
@@ -3169,6 +3174,7 @@ function renderPaymentHeatmap(){
     <span><i class="hm-pagado"></i> Al día</span>
     <span><i class="hm-mora"></i> En mora</span>
     <span><i class="hm-futuro"></i> Cuota futura</span>
+    <span><i class="hm-abono"></i> Abono (sin plan)</span>
     <span><i class="hm-na"></i> Sin cuota</span>
   </div>`;
   el.innerHTML=html;
