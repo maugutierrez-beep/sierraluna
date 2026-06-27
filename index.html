@@ -364,6 +364,30 @@
   .rec-bar{display:flex;gap:28px;flex-wrap:wrap;padding:4px 0 16px}
 #rec_body{padding:4px 18px 16px}
 .tcount:empty{display:none}
+/* ===== Sistema: integridad + respaldos + bitácora ===== */
+.hc-sum{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:6px}
+.hc-sum .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.hc-sum .s b{font-size:20px;font-weight:700;color:var(--navy)}
+.hc-item{display:flex;gap:10px;align-items:flex-start;padding:10px 13px;border:1px solid var(--line-soft);border-radius:10px;background:#fff;font-size:13px;line-height:1.45}
+.hc-item .hc-ico{flex:0 0 auto;font-size:14px}
+.hc-item.err{border-color:#f0c5bd;background:#fdf3f1}
+.hc-item.warn{border-color:#f1e2bf;background:#fdfaf1}
+.hc-item.ok{border-color:#cfe8d6;background:#f3faf5}
+.hc-item b{color:var(--navy)}
+.hc-tag{flex:0 0 auto;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:99px;white-space:nowrap;align-self:flex-start}
+.hc-tag.err{background:#c0392b;color:#fff}
+.hc-tag.warn{background:#b7791f;color:#fff}
+.bk-list,.au-list{width:100%;border-collapse:collapse;font-size:12.5px}
+.bk-list th,.au-list th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--line-soft)}
+.bk-list td,.au-list td{padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.bk-list tr:last-child td,.au-list tr:last-child td{border-bottom:none}
+.au-user{font-weight:700;color:var(--navy);white-space:nowrap}
+.au-when{color:var(--ink-soft);white-space:nowrap}
+.sys-note{font-size:11.5px;color:var(--ink-soft);margin-top:10px;line-height:1.55}
+.btn-sys{background:#fff;border:1px solid var(--line);color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 14px;border-radius:9px;cursor:pointer;transition:.12s}
+.btn-sys:hover{border-color:var(--navy)}
+.lg-user{width:100%;padding:11px 13px;margin:0 0 10px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font-size:14px;font-family:inherit;cursor:pointer}
+.lg-user option{color:#1a2740}
   .rec-bar .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .rec-bar .s b{font-size:20px;color:var(--navy);font-weight:700}
   .rec-list{display:flex;flex-direction:column;gap:8px}
@@ -492,6 +516,14 @@
   <div class="lg-card">
     <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNjAiPjx0ZXh0IHg9IjEwMCIgeT0iMzgiIGZvbnQtZmFtaWx5PSJNb250c2VycmF0LHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjQiIGxldHRlci1zcGFjaW5nPSI2IiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5TSUVSUkFMVU5BPC90ZXh0Pjwvc3ZnPg==" alt="Sierraluna">
     <div class="lg-sub">Control de Recaudo</div>
+    <select id="lg_user" class="lg-user" title="Identifícate para la bitácora de cambios">
+      <option value="">¿Quién ingresa? (para la bitácora)</option>
+      <option value="Mauricio">Mauricio</option>
+      <option value="Carolina">Carolina (cartera)</option>
+      <option value="Felipe">Felipe (ventas)</option>
+      <option value="Martha">Martha</option>
+      <option value="Otro">Otro</option>
+    </select>
     <input type="password" id="lg_pass" placeholder="Clave de acceso" autocomplete="current-password" onkeydown="if(event.key==='Enter')tryLogin()">
     <button class="lg-btn" onclick="tryLogin()">Entrar</button>
     <div class="lg-err" id="lg_err"></div>
@@ -542,6 +574,7 @@
     <button class="tab" data-tab="inventario" onclick="showTab('inventario')">Inventario</button>
     <button class="tab" data-tab="movimientos" onclick="showTab('movimientos')">Movimientos<span class="tcount" id="tc-movimientos" style="background:#4a7eb5"></span></button>
     <button class="tab" data-tab="finanzas" onclick="showTab('finanzas')">Finanzas</button>
+    <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()">Sistema</button>
   </div>
 
   <!-- Charts -->
@@ -747,6 +780,30 @@
   <p class="footnote" data-section="finanzas">
     Los datos se almacenan localmente en tu navegador (privados, solo para ti) y se conservan entre sesiones. «Recibido (cartera)» reproduce el RESUMEN ONLINE; el consolidado suma los recaudos offline. Usa «Exportar CSV» para respaldos.
   </p>
+
+  <!-- ===== Sistema ===== -->
+  <div class="panel sec-hidden" data-section="sistema">
+    <div class="panel-h">
+      <div><h2>Integridad de datos</h2><div class="desc">Revisión automática de inconsistencias contables. Solo lectura: no modifica nada.</div></div>
+      <button class="btn-sys" onclick="renderHealth()">↻ Revisar de nuevo</button>
+    </div>
+    <div id="sys_health" style="padding:14px 18px 18px"></div>
+  </div>
+
+  <div class="panel sec-hidden" data-section="sistema">
+    <div class="panel-h">
+      <div><h2>Respaldos</h2><div class="desc">Copias completas de la base en la nube. Se crea una automática al abrir cada día; también puedes crear y restaurar manualmente.</div></div>
+      <button class="btn-sys" onclick="createSnapshot('manual')">+ Crear respaldo ahora</button>
+    </div>
+    <div id="sys_backups" style="padding:14px 18px 18px"></div>
+  </div>
+
+  <div class="panel sec-hidden" data-section="sistema">
+    <div class="panel-h">
+      <div><h2>Bitácora de cambios</h2><div class="desc">Registro de quién hizo cada cambio. Se identifica con la persona elegida al ingresar.</div></div>
+    </div>
+    <div id="sys_audit" style="padding:14px 18px 18px"></div>
+  </div>
 </div>
 
 <!-- Lot detail modal -->
@@ -3850,6 +3907,7 @@ async function tryLogin(){
   const h=await sha256(val);
   if(h===PASS_HASH){
     try{sessionStorage.setItem(SESSION_KEY,"1");}catch(_){}
+    try{var _u=document.getElementById("lg_user");var _v=(_u&&_u.value)?_u.value:"—";sessionStorage.setItem("sl_user",_v);localStorage.setItem("sl_user_last",_v);}catch(_){}
     err.textContent="";
     unlockApp();
   }else{
@@ -3882,5 +3940,321 @@ function logout(){
     // Mantener el gate visible y enfocar el campo de clave
     setTimeout(()=>{const i=document.getElementById("lg_pass");if(i)i.focus();},120);
   }
+})();
+</script>
+
+<script>
+/* ============================================================
+   Sistema: Integridad + Respaldos + Bitácora  (add-on v1)
+   Se carga DESPUÉS del script principal: todos los globals existen.
+   No modifica funciones existentes; las envuelve (wrap).
+   ============================================================ */
+(function(){
+  "use strict";
+  var SNAP_KEEP = 14;     // respaldos a conservar
+  var AUDIT_MAX = 600;    // entradas máximas de bitácora
+
+  /* ---------- Identidad (para la bitácora) ---------- */
+  function curUser(){
+    try{ return sessionStorage.getItem("sl_user") || "—"; }catch(_){ return "—"; }
+  }
+  // Pre-seleccionar la última identidad usada en el login
+  try{
+    var _last = localStorage.getItem("sl_user_last");
+    var _sel = document.getElementById("lg_user");
+    if(_sel && _last){ _sel.value = _last; }
+  }catch(_){}
+
+  /* ---------- Bitácora ---------- */
+  function pushAudit(entry){
+    if(typeof DB === "undefined" || !DB) return;
+    if(!Array.isArray(DB._audit)) DB._audit = [];
+    DB._audit.push({
+      ts: Date.now(),
+      user: curUser(),
+      action: (entry && entry.action) || "Cambio",
+      detail: (entry && entry.detail) || ""
+    });
+    if(DB._audit.length > AUDIT_MAX) DB._audit = DB._audit.slice(-AUDIT_MAX);
+  }
+
+  // Acción pendiente capturada antes de mutar; se confirma cuando se llama save()
+  var _pending = null, _pendingTimer = null;
+  function setPending(p){
+    _pending = p;
+    clearTimeout(_pendingTimer);
+    // si en 6s no se guardó (validación falló), se descarta para no registrar falsos
+    _pendingTimer = setTimeout(function(){ _pending = null; }, 6000);
+  }
+
+  // Wrap de save(): confirma el registro justo cuando el cambio se persiste
+  var _origSave = window.save;
+  if(typeof _origSave === "function"){
+    window.save = function(){
+      if(_pending){ try{ pushAudit(_pending); }catch(_){} _pending = null; clearTimeout(_pendingTimer); }
+      return _origSave.apply(this, arguments);
+    };
+  }
+
+  // Wrap genérico: derive() lee el modal ANTES de ejecutar la mutación
+  function wrapMut(name, derive){
+    var orig = window[name];
+    if(typeof orig !== "function") return;
+    window[name] = function(){
+      try{ setPending(derive.apply(this, arguments)); }catch(_){ setPending(null); }
+      return orig.apply(this, arguments);
+    };
+  }
+  function val(id){ var e=document.getElementById(id); return e ? (e.value||"") : ""; }
+  function buyerLabel(id){
+    try{ var b=DB.buyers.find(function(x){return x.id===id;});
+      return b ? (b.code ? (b.code+" "+b.name) : b.name) : ""; }catch(_){ return ""; }
+  }
+
+  wrapMut("savePayment",            function(){ return {action:"Abono registrado",   detail: money(parseNum(val("pay_amount")))+" · "+buyerLabel(val("pay_buyer"))}; });
+  wrapMut("saveBuyer",              function(){ return {action:"Comprador guardado",  detail: (val("b_code")+" "+val("b_name")).trim()}; });
+  wrapMut("saveEditMovement",       function(){ return {action:"Movimiento editado",  detail: money(parseNum(val("editmov_amount")))+" · "+buyerLabel(val("editmov_buyer"))}; });
+  wrapMut("saveOffline",            function(){ return {action:"Movimiento offline",  detail: val("o_name")+" · "+money(parseNum(val("o_amount")))}; });
+  wrapMut("deleteMovementFromModal",function(){ return {action:"Movimiento eliminado",detail:""}; });
+  wrapMut("delBuyerFromModal",      function(){ return {action:"Comprador eliminado", detail:""}; });
+  wrapMut("delBuyer",               function(){ return {action:"Comprador eliminado", detail:""}; });
+  wrapMut("deleteGasto",            function(){ return {action:"Gasto eliminado",     detail:""}; });
+  wrapMut("deleteVoucher",          function(){ return {action:"Comprobante eliminado",detail:""}; });
+  wrapMut("importJSON",             function(){ return {action:"Datos importados (JSON)",detail:""}; });
+
+  /* ---------- Respaldos (snapshots como filas aparte) ---------- */
+  function tsId(){
+    var d=new Date(), p=function(n){return String(n).padStart(2,"0");};
+    return ""+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
+  }
+  function sbFetch(path, opts){
+    opts = opts || {};
+    if(!opts.headers) opts.headers = SB_H();
+    return fetch(SB_URL+"/rest/v1/"+path, opts);
+  }
+  function createSnapshot(reason){
+    return (async function(){
+      try{
+        if(typeof DB==="undefined" || !DB || !DB.buyers){ if(reason!=="auto") alert("No hay datos cargados aún."); return false; }
+        var id = "snap_"+tsId()+"_"+(reason||"manual");
+        var body = JSON.stringify({ id:id, data: JSON.stringify(DB), updated_at: new Date().toISOString() });
+        var hh = SB_H(); hh["Prefer"]="return=minimal";
+        var r = await sbFetch("sierraluna_db", { method:"POST", headers:hh, body:body });
+        if(!r.ok && r.status!==201){ throw new Error("HTTP "+r.status); }
+        DB._lastSnap = new Date().toISOString().slice(0,10);
+        try{ if(typeof window.save==="function") window.save(); }catch(_){}
+        await pruneSnapshots();
+        if(reason!=="auto"){ await renderBackups(); }
+        return true;
+      }catch(e){
+        console.error("snapshot:", e);
+        if(reason!=="auto") alert("No se pudo crear el respaldo: "+e.message);
+        return false;
+      }
+    })();
+  }
+  function listSnapshots(){
+    return (async function(){
+      try{
+        var r = await sbFetch("sierraluna_db?id=like.snap_*&select=id,updated_at&order=id.desc", {});
+        if(!r.ok) return [];
+        return await r.json();
+      }catch(e){ console.warn("list snap:", e); return []; }
+    })();
+  }
+  function pruneSnapshots(){
+    return (async function(){
+      try{
+        var snaps = await listSnapshots(); // más nuevo primero
+        if(snaps.length <= SNAP_KEEP) return;
+        var toDel = snaps.slice(SNAP_KEEP);
+        for(var i=0;i<toDel.length;i++){
+          await sbFetch("sierraluna_db?id=eq."+encodeURIComponent(toDel[i].id), { method:"DELETE", headers:SB_H() });
+        }
+      }catch(e){ console.warn("prune:", e); }
+    })();
+  }
+  // Reemplazo en sitio de DB (conserva la referencia que usan todas las funciones)
+  function replaceDB(obj){
+    Object.keys(DB).forEach(function(k){ delete DB[k]; });
+    Object.assign(DB, obj);
+  }
+  function restoreSnapshot(id){
+    return (async function(){
+      if(!confirm("¿Restaurar este respaldo?\n\nSe reemplazará TODA la base actual por la del respaldo:\n"+id+"\n\nAntes de hacerlo se guarda un respaldo de seguridad del estado actual.")) return;
+      try{
+        await createSnapshot("prerestore");
+        var r = await sbFetch("sierraluna_db?id=eq."+encodeURIComponent(id)+"&select=data", {});
+        var rows = await r.json();
+        if(!rows[0] || !rows[0].data){ throw new Error("respaldo vacío"); }
+        var restored = JSON.parse(rows[0].data);
+        replaceDB(restored);
+        pushAudit({action:"Respaldo restaurado", detail:id});
+        if(typeof window.save==="function") window.save();
+        if(typeof render==="function") render();
+        if(typeof showTab==="function") showTab(typeof activeTab!=="undefined"?activeTab:"resumen");
+        alert("Respaldo restaurado correctamente.");
+        renderSistema();
+      }catch(e){
+        console.error("restore:", e);
+        alert("No se pudo restaurar: "+e.message);
+      }
+    })();
+  }
+
+  /* ---------- Auto-respaldo diario ---------- */
+  function maybeAutoSnapshot(){
+    return (async function(){
+      try{
+        if(typeof DB==="undefined" || !DB || !DB.buyers || !DB.buyers.length) return;
+        var todayStr = new Date().toISOString().slice(0,10);
+        if(DB._lastSnap === todayStr) return;
+        var snaps = await listSnapshots();
+        var stamp = "snap_"+todayStr.replace(/-/g,"");
+        var hasToday = snaps.some(function(s){ return (s.id||"").indexOf(stamp)===0; });
+        if(hasToday){ DB._lastSnap = todayStr; return; }
+        await createSnapshot("auto");
+      }catch(e){ console.warn("auto-snap:", e); }
+    })();
+  }
+  // Esperar a que la app cargue (boot async) y disparar una vez
+  var _polls=0;
+  var _int=setInterval(function(){
+    _polls++;
+    var ready = (typeof DB!=="undefined") && DB && DB.buyers && DB.buyers.length;
+    var authed=false; try{ authed = sessionStorage.getItem(SESSION_KEY)==="1"; }catch(_){}
+    if(ready && authed){ clearInterval(_int); setTimeout(maybeAutoSnapshot, 1800); }
+    else if(_polls>40){ clearInterval(_int); }
+  }, 1500);
+
+  /* ---------- Integridad ---------- */
+  function runHealthCheck(){
+    var issues=[];
+    var B = (typeof DB!=="undefined" && DB && DB.buyers) ? DB.buyers : [];
+    var lotMap={};
+    function splitLots(s){
+      return String(s||"").toUpperCase().split(/\s*[\/,;+]\s*|\s+Y\s+/).map(function(x){return x.trim();}).filter(Boolean);
+    }
+    function isNoLote(s){ var t=String(s||"").trim().toUpperCase(); return !t || /POR\s*DEFINIR|SIN\s*ASIGNAR|PENDIENTE|^PD$|^-+$|^N\/?A$/.test(t); }
+    B.forEach(function(b){
+      if(b.code==="PD") return;
+      // plan no cuadra con el total
+      if(Array.isArray(b.plan) && b.plan.length && b.total>0){
+        var sum=b.plan.reduce(function(a,c){return a+(+c.amount||0);},0);
+        if(Math.abs(sum-b.total)>1000){
+          issues.push({sev:"err",code:"PLAN",msg:"<b>"+b.code+" "+b.name+"</b>: el plan suma "+money(sum)+" pero el total es "+money(b.total)+" (difiere "+money(Math.abs(sum-b.total))+")."});
+        }
+      }
+      // sobrepago / saldo negativo
+      var s=saldo(b);
+      if(s < -1000){
+        issues.push({sev:"err",code:"SOBREPAGO",msg:"<b>"+b.code+" "+b.name+"</b>: lo abonado supera el total en "+money(Math.abs(s))+" (saldo negativo)."});
+      }
+      // sin lote (incluye marcadores «Por Definir»)
+      if(b.total>0 && isNoLote(b.lote)){
+        issues.push({sev:"warn",code:"SIN LOTE",msg:"<b>"+b.code+" "+b.name+"</b>: lote por definir / sin asignar."});
+      }
+      // total vs tam·pm2
+      if(b.tam>0 && b.pm2>0 && b.total>0){
+        var exp=b.tam*b.pm2;
+        if(exp>0 && Math.abs(exp-b.total)/exp > 0.03){
+          issues.push({sev:"warn",code:"TOTAL",msg:"<b>"+b.code+" "+b.name+"</b>: total "+money(b.total)+" no concuerda con tam·precio ("+money(exp)+"). Posible dígito faltante o precio desactualizado."});
+        }
+      }
+      // pagos: sin recibo / monto inválido
+      (b.payments||[]).forEach(function(p){
+        var amt=+p.amount||0;
+        if(amt>0 && (p.recibo===undefined || p.recibo===null || p.recibo==="")){
+          issues.push({sev:"warn",code:"SIN RECIBO",msg:"<b>"+b.code+" "+b.name+"</b>: pago de "+money(amt)+" ("+(p.date||"sin fecha")+") sin número de recibo."});
+        }
+        if(!(amt>0)){
+          issues.push({sev:"warn",code:"MONTO",msg:"<b>"+b.code+" "+b.name+"</b>: pago con monto inválido ("+p.amount+")."});
+        }
+      });
+      if(!isNoLote(b.lote)) splitLots(b.lote).forEach(function(l){ (lotMap[l]=lotMap[l]||[]).push(b.code); });
+    });
+    // lotes duplicados
+    Object.keys(lotMap).forEach(function(l){
+      var owners=lotMap[l].filter(function(v,i,a){return a.indexOf(v)===i;});
+      if(owners.length>1){
+        issues.push({sev:"err",code:"LOTE DUP",msg:"Lote <b>"+l+"</b> figura asignado a "+owners.length+" compradores: "+owners.join(", ")+"."});
+      }
+    });
+    return issues;
+  }
+
+  function renderHealth(){
+    var el=document.getElementById("sys_health"); if(!el) return;
+    var issues=runHealthCheck();
+    var errs=issues.filter(function(i){return i.sev==="err";}).length;
+    var warns=issues.filter(function(i){return i.sev==="warn";}).length;
+    var nb=(typeof DB!=="undefined"&&DB&&DB.buyers)?DB.buyers.filter(function(b){return b.code!=="PD";}).length:0;
+    var html='<div class="hc-sum">'+
+      '<div class="s"><span>Errores</span><b style="color:'+(errs?'#c0392b':'#1d6b3f')+'">'+errs+'</b></div>'+
+      '<div class="s"><span>Advertencias</span><b style="color:'+(warns?'#b7791f':'#1d6b3f')+'">'+warns+'</b></div>'+
+      '<div class="s"><span>Compradores revisados</span><b>'+nb+'</b></div></div>';
+    if(!issues.length){
+      html+='<div class="hc-item ok" style="margin-top:8px"><span class="hc-ico">✓</span><div>Sin inconsistencias según las reglas actuales. La base está limpia.</div></div>';
+    }else{
+      issues.sort(function(a,b){ return (a.sev===b.sev)?0:(a.sev==="err"?-1:1); });
+      html+=issues.map(function(i){
+        return '<div class="hc-item '+i.sev+'" style="margin-top:8px"><span class="hc-tag '+i.sev+'">'+i.code+'</span><div>'+i.msg+'</div></div>';
+      }).join("");
+    }
+    html+='<div class="sys-note"><b>Nota:</b> algunos casos son esperados — los lotes «Por Definir» aparecerán como «sin lote» mientras no se asignen, y los créditos comerciales sin recibo son válidos. Es una guía de revisión, no un veredicto automático.</div>';
+    el.innerHTML=html;
+  }
+
+  function renderBackups(){
+    return (async function(){
+      var el=document.getElementById("sys_backups"); if(!el) return;
+      el.innerHTML='<div class="sys-note">Cargando respaldos…</div>';
+      var snaps=await listSnapshots();
+      if(!snaps.length){
+        el.innerHTML='<div class="hc-item warn"><span class="hc-ico">!</span><div>Aún no hay respaldos en la nube. Crea el primero con el botón de arriba.</div></div>';
+        return;
+      }
+      var rows=snaps.map(function(s){
+        var m=(s.id||"").match(/snap_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_?(\w+)?/);
+        var when=s.id, tipo="";
+        if(m){ when=m[3]+"/"+m[2]+"/"+m[1]+" "+m[4]+":"+m[5]; tipo=m[7]||""; }
+        var tipoLbl=({auto:"automático",manual:"manual",prerestore:"pre-restauración"})[tipo]||tipo||"—";
+        return '<tr><td>'+when+'</td><td>'+tipoLbl+'</td><td style="text-align:right"><button class="btn-sys" onclick="restoreSnapshot(\''+s.id+'\')">Restaurar</button></td></tr>';
+      }).join("");
+      el.innerHTML='<table class="bk-list"><thead><tr><th>Fecha</th><th>Tipo</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>'+
+        '<div class="sys-note">Se conservan los '+SNAP_KEEP+' respaldos más recientes; los anteriores se eliminan solos. Restaurar reemplaza toda la base y, antes de hacerlo, guarda un respaldo de seguridad del estado actual.</div>';
+    })();
+  }
+
+  function renderAudit(){
+    var el=document.getElementById("sys_audit"); if(!el) return;
+    var log=(typeof DB!=="undefined"&&DB&&Array.isArray(DB._audit))?DB._audit.slice().reverse():[];
+    if(!log.length){
+      el.innerHTML='<div class="hc-item ok"><span class="hc-ico">·</span><div>Sin movimientos registrados todavía. A partir de ahora se registra cada cambio (abonos, edición de compradores, eliminaciones, importaciones y restauraciones) con la persona que lo hizo.</div></div>';
+      return;
+    }
+    var show=log.slice(0,150);
+    function fmt(ts){ var d=new Date(ts), p=function(n){return String(n).padStart(2,"0");};
+      return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+    var rows=show.map(function(e){
+      return '<tr><td class="au-when">'+fmt(e.ts)+'</td><td class="au-user">'+(e.user||"—")+'</td><td>'+(e.action||"")+'</td><td style="color:var(--ink-soft)">'+(e.detail||"")+'</td></tr>';
+    }).join("");
+    el.innerHTML='<table class="au-list"><thead><tr><th>Fecha</th><th>Quién</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      (log.length>150?'<div class="sys-note">Mostrando las 150 más recientes de '+log.length+'.</div>':"");
+  }
+
+  function renderSistema(){
+    try{ renderHealth(); }catch(e){ console.error("renderHealth",e); }
+    try{ renderBackups(); }catch(e){ console.error("renderBackups",e); }
+    try{ renderAudit(); }catch(e){ console.error("renderAudit",e); }
+  }
+
+  /* ---------- Exponer lo que usan los onclick ---------- */
+  window.createSnapshot   = createSnapshot;
+  window.restoreSnapshot  = restoreSnapshot;
+  window.renderHealth     = renderHealth;
+  window.renderBackups    = renderBackups;
+  window.renderAudit      = renderAudit;
+  window.renderSistema    = renderSistema;
 })();
 </script>
