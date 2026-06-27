@@ -388,6 +388,33 @@
 .btn-sys:hover{border-color:var(--navy)}
 .lg-user{width:100%;padding:11px 13px;margin:0 0 10px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font-size:14px;font-family:inherit;cursor:pointer}
 .lg-user option{color:#1a2740}
+/* ===== Flujo de caja ===== */
+.cf-chart{display:flex;align-items:flex-end;gap:6px;height:184px;padding:8px 4px 0;overflow-x:auto;border-bottom:1px solid var(--line-soft)}
+.cf-col{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:42px;flex:1}
+.cf-bars{display:flex;align-items:flex-end;gap:3px;height:152px}
+.cf-bar{width:13px;border-radius:3px 3px 0 0}
+.cf-bruto{background:#c7d6e8}
+.cf-adj{background:var(--navy)}
+.cf-x{font-size:9.5px;color:var(--ink-soft);white-space:nowrap;transform:rotate(-30deg);transform-origin:center;height:14px}
+.cf-leg{display:flex;gap:20px;margin-top:14px;font-size:11.5px;color:var(--ink-soft)}
+.cf-leg span{display:flex;align-items:center;gap:6px}
+.cf-sw{display:inline-block;width:12px;height:12px;border-radius:3px}
+/* ===== Embudo de prospectos ===== */
+.funnel{display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+.fn-row{display:flex;align-items:center;gap:12px}
+.fn-lab{flex:0 0 110px;font-size:12.5px;color:var(--ink-soft);font-weight:600;text-align:right}
+.fn-bar{height:34px;border-radius:7px;display:flex;align-items:center;gap:6px;padding:0 12px;color:#fff;font-size:13px;min-width:54px}
+.fn-bar b{font-size:15px}
+.fn-bar span{opacity:.85;font-size:11.5px}
+.fn-bar.e0{background:#8fa6c0}.fn-bar.e1{background:#5e7fa6}.fn-bar.e2{background:#c79a3a}.fn-bar.e3{background:#1d6b3f}
+.pill-etapa{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:99px;color:#fff;white-space:nowrap}
+.pill-etapa.e0{background:#8fa6c0}.pill-etapa.e1{background:#5e7fa6}.pill-etapa.e2{background:#c79a3a}.pill-etapa.e3{background:#1d6b3f}
+.btn-mini{border:1px solid var(--line);background:#fff;color:var(--navy);width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;line-height:1}
+.btn-mini:hover{border-color:var(--navy)}
+.btn-mini.danger{color:#c0392b;border-color:#f0c5bd}
+.mora-cfg{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mora-cfg label{font-size:12.5px;color:var(--ink-soft);font-weight:600}
+.mora-cfg input{width:100px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px}
   .rec-bar .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .rec-bar .s b{font-size:20px;color:var(--navy);font-weight:700}
   .rec-list{display:flex;flex-direction:column;gap:8px}
@@ -575,6 +602,8 @@
     <button class="tab" data-tab="movimientos" onclick="showTab('movimientos')">Movimientos<span class="tcount" id="tc-movimientos" style="background:#4a7eb5"></span></button>
     <button class="tab" data-tab="finanzas" onclick="showTab('finanzas')">Finanzas</button>
     <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()">Sistema</button>
+    <button class="tab" data-tab="flujo" onclick="showTab('flujo');renderFlujo();renderMora()">Flujo</button>
+    <button class="tab" data-tab="prospectos" onclick="showTab('prospectos');renderProspectos()">Prospectos</button>
   </div>
 
   <!-- Charts -->
@@ -804,6 +833,30 @@
     </div>
     <div id="sys_audit" style="padding:14px 18px 18px"></div>
   </div>
+
+  <!-- ===== Flujo de caja (#4) + Intereses de mora (#5) ===== -->
+  <div class="panel sec-hidden" data-section="flujo">
+    <div class="panel-h">
+      <div><h2>Flujo de caja proyectado</h2><div class="desc">Ingresos esperados por mes según los planes de pago, con versión ajustada al cumplimiento histórico real.</div></div>
+      <button class="btn-sys" onclick="renderFlujo()">↻ Recalcular</button>
+    </div>
+    <div id="flujo_body" style="padding:14px 18px 18px"></div>
+  </div>
+
+  <div class="panel sec-hidden" data-section="flujo">
+    <div class="panel-h">
+      <div><h2>Intereses de mora (estimación)</h2><div class="desc">Cálculo referencial sobre la cartera vencida. Configura la tasa según tus promesas; no se cobra automáticamente.</div></div>
+    </div>
+    <div id="mora_body" style="padding:14px 18px 18px"></div>
+  </div>
+
+  <!-- ===== Prospectos / pipeline (#9) ===== -->
+  <div class="panel sec-hidden" data-section="prospectos">
+    <div class="panel-h">
+      <div><h2>Pipeline comercial</h2><div class="desc">Embudo de prospectos, reservas y promesas en gestión para los lotes restantes. Separado de las promesas firmadas.</div></div>
+    </div>
+    <div id="prosp_body" style="padding:14px 18px 18px"></div>
+  </div>
 </div>
 
 <!-- Lot detail modal -->
@@ -971,6 +1024,36 @@
       <div class="fg"><label>Monto</label><input type="text" id="o_amount" inputmode="numeric" placeholder="100.000.000"></div>
     </div>
     <div class="modal-f"><span></span><div><button class="btn-line" onclick="closeAll()">Cerrar</button><button class="btn-gold" onclick="saveOffline()">Agregar</button></div></div>
+  </div>
+</div>
+
+<!-- Prospecto / lead modal -->
+<div class="overlay" id="ov_lead">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-h"><h3 id="lead_title">Nuevo prospecto</h3><button class="close" onclick="closeAll()">×</button></div>
+    <div class="modal-b">
+      <input type="hidden" id="ld_id">
+      <div class="fg"><label>Nombre *</label><input type="text" id="ld_name" placeholder="Nombre del interesado"></div>
+      <div class="grid2">
+        <div class="fg"><label>Teléfono</label><input type="text" id="ld_tel" placeholder="3XX XXX XXXX"></div>
+        <div class="fg"><label>Correo</label><input type="text" id="ld_email" placeholder="correo@ejemplo.com"></div>
+      </div>
+      <div class="grid2">
+        <div class="fg"><label>Lote de interés</label><input type="text" id="ld_lote" placeholder="Ej: A1, E7"></div>
+        <div class="fg"><label>Etapa</label><select id="ld_etapa">
+          <option value="Prospecto">Prospecto</option>
+          <option value="Contactado">Contactado</option>
+          <option value="Reserva">Reserva</option>
+          <option value="Promesa">Promesa</option>
+        </select></div>
+      </div>
+      <div class="grid2">
+        <div class="fg"><label>Monto de reserva</label><input type="text" id="ld_monto" inputmode="numeric" placeholder="0"></div>
+        <div class="fg"><label>Vendedor</label><input type="text" id="ld_vend" placeholder="Felipe"></div>
+      </div>
+      <div class="fg"><label>Nota</label><input type="text" id="ld_nota" placeholder="Observaciones del seguimiento"></div>
+    </div>
+    <div class="modal-f"><span></span><div><button class="btn-line" onclick="closeAll()">Cerrar</button><button class="btn-gold" onclick="saveLead()">Guardar</button></div></div>
   </div>
 </div>
 
@@ -4256,5 +4339,213 @@ function logout(){
   window.renderBackups    = renderBackups;
   window.renderAudit      = renderAudit;
   window.renderSistema    = renderSistema;
+  window.slAudit          = pushAudit;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v2: Flujo de caja (#4) + Intereses de mora (#5) + Prospectos (#9)
+   Se carga después del script principal y del add-on v1. No modifica
+   funciones existentes; añade nuevas y reusa los globals.
+   ============================================================ */
+(function(){
+  "use strict";
+  var ETAPAS=["Prospecto","Contactado","Reserva","Promesa"];
+  var MES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  function audit(a,d){ try{ if(window.slAudit) window.slAudit({action:a,detail:d}); }catch(_){} }
+  function cfg(){ if(typeof DB==="undefined"||!DB) return {}; if(!DB.config) DB.config={}; return DB.config; }
+  function mlabel(m){ var p=m.split("-"); return MES[+p[1]-1]+" "+p[0].slice(2); }
+
+  /* ============ #4 · Flujo de caja proyectado ============ */
+  function buildCashflow(){
+    var today=new Date().toISOString().slice(0,10);
+    var fut={}, debido=0, pagado=0, vencido=0;
+    (DB.buyers||[]).forEach(function(b){
+      var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+      if(!plan.length) return;
+      var paid=abonado(b); pagado+=paid; var cum=0;
+      plan.forEach(function(c){
+        var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0, Math.min(amt, cum-paid));
+        if(c.date<=today){ debido+=amt; vencido+=unc; }
+        else if(unc>0){ var m=c.date.slice(0,7); fut[m]=(fut[m]||0)+unc; }
+      });
+    });
+    var cumpl = debido>0 ? Math.min(1, pagado/debido) : 1;
+    return {fut:fut, months:Object.keys(fut).sort(), cumpl:cumpl, vencido:vencido, debido:debido, pagado:pagado};
+  }
+  function renderFlujo(){
+    var el=document.getElementById("flujo_body"); if(!el) return;
+    var cf=buildCashflow();
+    var horizon=cf.months.slice(0,18);
+    if(!horizon.length){ el.innerHTML='<div class="hc-item warn"><span class="hc-ico">!</span><div>No hay cuotas futuras en los planes de pago para proyectar.</div></div>'; return; }
+    var maxV=Math.max.apply(null,[1].concat(horizon.map(function(m){return cf.fut[m];})));
+    var tot=horizon.reduce(function(a,m){return a+cf.fut[m];},0);
+    var totAdj=tot*cf.cumpl;
+    var pct=(cf.cumpl*100).toFixed(0);
+    var html='<div class="hc-sum">'+
+      '<div class="s"><span>Cumplimiento histórico</span><b>'+pct+'%</b></div>'+
+      '<div class="s"><span>Esperado 18m (plan)</span><b>'+moneyShort(tot)+'</b></div>'+
+      '<div class="s"><span>Esperado 18m (ajustado)</span><b style="color:#1d6b3f">'+moneyShort(totAdj)+'</b></div>'+
+      '<div class="s"><span>Cartera vencida</span><b style="color:#c0392b">'+moneyShort(cf.vencido)+'</b></div></div>';
+    html+='<div class="cf-chart">';
+    horizon.forEach(function(m){
+      var v=cf.fut[m], adj=v*cf.cumpl;
+      html+='<div class="cf-col" title="'+mlabel(m)+' · plan '+money(v)+' · ajustado '+money(adj)+'">'+
+        '<div class="cf-bars">'+
+          '<div class="cf-bar cf-bruto" style="height:'+Math.round(v/maxV*150)+'px"></div>'+
+          '<div class="cf-bar cf-adj" style="height:'+Math.round(adj/maxV*150)+'px"></div>'+
+        '</div><div class="cf-x">'+mlabel(m)+'</div></div>';
+    });
+    html+='</div>';
+    html+='<div class="cf-leg"><span><i class="cf-sw cf-bruto"></i>Esperado (plan)</span><span><i class="cf-sw cf-adj"></i>Ajustado por cumplimiento '+pct+'%</span></div>';
+    html+='<table class="au-list" style="margin-top:14px"><thead><tr><th>Mes</th><th style="text-align:right">Esperado (plan)</th><th style="text-align:right">Ajustado</th></tr></thead><tbody>';
+    horizon.forEach(function(m){
+      html+='<tr><td>'+mlabel(m)+'</td><td style="text-align:right">'+money(cf.fut[m])+'</td><td style="text-align:right;color:#1d6b3f">'+money(cf.fut[m]*cf.cumpl)+'</td></tr>';
+    });
+    html+='<tr style="font-weight:700;border-top:2px solid var(--line)"><td>Total 18 meses</td><td style="text-align:right">'+money(tot)+'</td><td style="text-align:right;color:#1d6b3f">'+money(totAdj)+'</td></tr>';
+    html+='</tbody></table>';
+    html+='<div class="sys-note"><b>Cómo leerlo:</b> «Esperado» suma las cuotas de los planes por mes (lo pactado). «Ajustado» aplica el cumplimiento histórico real ('+pct+'%): de cada $100 que han vencido, se han recaudado $'+pct+'. La cartera vencida ('+moneyShort(cf.vencido)+') es dinero ya exigible que aún no entra y <b>no</b> está sumado en la proyección futura. Supuesto explícito: el comportamiento de pago futuro se parece al observado hasta hoy.</div>';
+    el.innerHTML=html;
+  }
+
+  /* ============ #5 · Intereses de mora (configurable) ============ */
+  function renderMora(){
+    var el=document.getElementById("mora_body"); if(!el) return;
+    var rate=+(cfg().moraRate||0);
+    var rateRow='<div class="mora-cfg"><label>Tasa de mora mensual (%)</label>'+
+      '<input id="mora_rate" type="number" step="0.1" min="0" value="'+rate+'">'+
+      '<button class="btn-sys" onclick="saveMoraRate()">Guardar tasa</button></div>';
+    if(!rate){
+      el.innerHTML=rateRow+'<div class="hc-item warn" style="margin-top:12px"><span class="hc-ico">!</span><div>Configura la tasa de mora mensual según lo pactado en tus promesas para estimar los intereses. Mientras esté en 0 no se calcula nada, para no mostrar cifras inventadas.</div></div>';
+      return;
+    }
+    var today=new Date(), rows=[], totInt=0, totVen=0;
+    (DB.buyers||[]).forEach(function(b){
+      var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+      if(!plan.length) return;
+      var paid=abonado(b), cum=0, venc=0, intt=0;
+      plan.forEach(function(c){
+        var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0, Math.min(amt, cum-paid));
+        var cd=new Date(c.date+"T00:00");
+        if(cd<today && unc>0){
+          var meses=Math.floor((today-cd)/864e5)/30;
+          venc+=unc; intt+=unc*(rate/100)*meses;
+        }
+      });
+      if(venc>0){ totVen+=venc; totInt+=intt; rows.push({b:b,venc:venc,intt:intt}); }
+    });
+    rows.sort(function(a,b){return b.intt-a.intt;});
+    var html=rateRow+'<div class="hc-sum" style="margin-top:12px"><div class="s"><span>Vencido total</span><b style="color:#c0392b">'+moneyShort(totVen)+'</b></div><div class="s"><span>Interés estimado</span><b>'+moneyShort(totInt)+'</b></div></div>';
+    html+='<table class="au-list"><thead><tr><th>Comprador</th><th style="text-align:right">Vencido</th><th style="text-align:right">Interés estimado</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      html+='<tr><td>'+r.b.code+' '+r.b.name+'</td><td style="text-align:right;color:#c0392b">'+money(r.venc)+'</td><td style="text-align:right">'+money(r.intt)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+    html+='<div class="sys-note"><b>Estimación referencial.</b> Interés simple = saldo vencido × tasa mensual × meses de atraso, calculado cuota por cuota. No se cobra ni se suma automáticamente a los estados de cuenta; es insumo para negociación de cartera. Verifica que la tasa y la base coincidan con lo pactado en cada promesa (y con el tope de usura vigente).</div>';
+    el.innerHTML=html;
+  }
+  function saveMoraRate(){
+    var v=parseFloat(document.getElementById("mora_rate").value)||0;
+    cfg().moraRate=v; audit("Tasa de mora configurada", v+"% mensual");
+    if(window.save) save(); renderMora();
+  }
+
+  /* ============ #9 · Prospectos / pipeline ============ */
+  function leads(){ if(!Array.isArray(DB.leads)) DB.leads=[]; return DB.leads; }
+  function renderProspectos(){
+    var el=document.getElementById("prosp_body"); if(!el) return;
+    var L=leads();
+    var byE={}; ETAPAS.forEach(function(e){byE[e]={n:0,monto:0};});
+    L.forEach(function(l){ var e=l.etapa||"Prospecto"; if(!byE[e])byE[e]={n:0,monto:0}; byE[e].n++; byE[e].monto+=(+l.montoReserva||0); });
+    var maxN=Math.max.apply(null,[1].concat(ETAPAS.map(function(e){return byE[e].n;})));
+    var html='<div class="funnel">';
+    ETAPAS.forEach(function(e,i){
+      var w=22+(byE[e].n/maxN)*78;
+      html+='<div class="fn-row"><div class="fn-lab">'+e+'</div><div class="fn-bar e'+i+'" style="width:'+w+'%"><b>'+byE[e].n+'</b>'+(byE[e].monto?'<span> · '+moneyShort(byE[e].monto)+'</span>':'')+'</div></div>';
+    });
+    html+='</div>';
+    html+='<div style="margin:14px 0"><button class="btn-sys" onclick="openLead()">+ Nuevo prospecto</button></div>';
+    if(!L.length){
+      html+='<div class="hc-item ok"><span class="hc-ico">·</span><div>Sin prospectos aún. Registra leads, reservas y promesas en gestión para ver el embudo comercial y proyectar las ventas de los lotes restantes. Al firmar promesa, conviértelo en comprador con un clic.</div></div>';
+      el.innerHTML=html; return;
+    }
+    html+='<table class="au-list"><thead><tr><th>Nombre</th><th>Lote</th><th>Etapa</th><th style="text-align:right">Reserva</th><th>Vendedor</th><th></th></tr></thead><tbody>';
+    L.slice().sort(function(a,b){return ETAPAS.indexOf(b.etapa||"Prospecto")-ETAPAS.indexOf(a.etapa||"Prospecto");}).forEach(function(l){
+      var ei=ETAPAS.indexOf(l.etapa||"Prospecto");
+      html+='<tr>'+
+        '<td><b>'+(l.name||"—")+'</b>'+(l.tel?'<br><span style="color:var(--ink-soft);font-size:11px">'+l.tel+'</span>':'')+'</td>'+
+        '<td>'+(l.loteInteres||"—")+'</td>'+
+        '<td><span class="pill-etapa e'+ei+'">'+(l.etapa||"Prospecto")+'</span></td>'+
+        '<td style="text-align:right">'+(l.montoReserva?money(l.montoReserva):"—")+'</td>'+
+        '<td>'+(l.vend||"—")+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+          '<button class="btn-mini" title="Editar" onclick="openLead(\''+l.id+'\')">✎</button> '+
+          '<button class="btn-mini" title="Convertir a comprador" onclick="leadToBuyer(\''+l.id+'\')">→</button> '+
+          '<button class="btn-mini danger" title="Eliminar" onclick="delLead(\''+l.id+'\')">✕</button>'+
+        '</td></tr>';
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }
+  function openLead(id){
+    var l = id ? leads().find(function(x){return x.id===id;}) : null;
+    var g=function(i){return document.getElementById(i);};
+    g("lead_title").textContent = l?"Editar prospecto":"Nuevo prospecto";
+    g("ld_id").value=l?l.id:""; g("ld_name").value=l?(l.name||""):""; g("ld_tel").value=l?(l.tel||""):"";
+    g("ld_email").value=l?(l.email||""):""; g("ld_lote").value=l?(l.loteInteres||""):"";
+    g("ld_etapa").value=l?(l.etapa||"Prospecto"):"Prospecto";
+    g("ld_monto").value=l&&l.montoReserva?l.montoReserva:""; g("ld_vend").value=l?(l.vend||""):"";
+    g("ld_nota").value=l?(l.nota||""):"";
+    g("ov_lead").classList.add("on");
+  }
+  function saveLead(){
+    var name=document.getElementById("ld_name").value.trim();
+    if(!name){ alert("El nombre del prospecto es obligatorio."); return; }
+    var id=document.getElementById("ld_id").value;
+    var obj={ id:id||("ld_"+Date.now()), name:name,
+      tel:document.getElementById("ld_tel").value.trim(),
+      email:document.getElementById("ld_email").value.trim(),
+      loteInteres:document.getElementById("ld_lote").value.trim(),
+      etapa:document.getElementById("ld_etapa").value,
+      montoReserva:parseNum(document.getElementById("ld_monto").value)||0,
+      vend:document.getElementById("ld_vend").value.trim(),
+      nota:document.getElementById("ld_nota").value.trim() };
+    var L=leads();
+    if(id){ var i=L.findIndex(function(x){return x.id===id;}); if(i>=0) L[i]=obj; else L.push(obj); }
+    else L.push(obj);
+    audit(id?"Prospecto editado":"Prospecto creado", obj.name+" · "+obj.etapa);
+    if(window.save) save();
+    document.getElementById("ov_lead").classList.remove("on");
+    renderProspectos();
+  }
+  function delLead(id){
+    if(!confirm("¿Eliminar este prospecto del pipeline?")) return;
+    DB.leads=leads().filter(function(x){return x.id!==id;});
+    audit("Prospecto eliminado","");
+    if(window.save) save(); renderProspectos();
+  }
+  function leadToBuyer(id){
+    var l=leads().find(function(x){return x.id===id;}); if(!l) return;
+    if(!confirm("¿Convertir a «"+l.name+"» en comprador?\n\nSe abrirá el formulario de nuevo comprador con sus datos precargados. El prospecto sigue en el pipeline hasta que lo elimines manualmente.")) return;
+    if(typeof openBuyer==="function") openBuyer();
+    setTimeout(function(){
+      var set=function(i,v){var e=document.getElementById(i); if(e)e.value=v||"";};
+      set("b_name",l.name); set("b_tel",l.tel); set("b_email",l.email); set("b_lote",l.loteInteres);
+    },150);
+    audit("Prospecto → comprador (formulario)", l.name);
+  }
+
+  /* ---- exponer para onclick ---- */
+  window.renderFlujo=renderFlujo;
+  window.renderMora=renderMora;
+  window.saveMoraRate=saveMoraRate;
+  window.renderProspectos=renderProspectos;
+  window.openLead=openLead;
+  window.saveLead=saveLead;
+  window.delLead=delLead;
+  window.leadToBuyer=leadToBuyer;
 })();
 </script>
