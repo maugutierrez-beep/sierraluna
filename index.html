@@ -882,7 +882,7 @@
   <!-- ===== Cotizaciones ===== -->
   <div class="panel sec-hidden" data-section="cotizaciones">
     <div class="panel-h">
-      <div><h2>Cotizaciones</h2><div class="desc">Emite cotizaciones comerciales en PDF con la identidad de Sierraluna. Prefill desde compradores, prospectos o inventario; el historial queda numerado.</div></div>
+      <div><h2>Cotizaciones</h2><div class="desc">Emite cotizaciones comerciales en PDF con la identidad de Sierraluna. Prefill desde compradores, prospectos o inventario; el historial queda numerado y cada cliente nuevo entra solo al pipeline de prospectos.</div></div>
     </div>
     <div style="padding:16px 18px 18px">
       <div class="cot-wrap">
@@ -4736,10 +4736,31 @@ function logout(){
     var rec=Object.assign({}, q, {id:"q_"+Date.now(), num:nextQuoteNum(true), ts:Date.now(), fecha:new Date().toISOString().slice(0,10)});
     if(!Array.isArray(DB.quotes)) DB.quotes=[];
     DB.quotes.push(rec);
+    ensureLeadFromQuote(rec);
     audit("Cotización emitida", rec.num+" · "+rec.cliente+" · lote "+(rec.lote||"—"));
     if(window.save) save();
     renderQuotes();
     if(andPrint) printQuote(rec);
+  }
+  function normName(s){ return String(s||"").trim().toLowerCase().replace(/\s+/g," "); }
+  function ensureLeadFromQuote(rec){
+    try{
+      var n=normName(rec.cliente);
+      if(!n || n==="por definir") return;
+      var esComprador=(DB.buyers||[]).some(function(b){ return normName(b.name)===n; });
+      if(esComprador) return;
+      if(!Array.isArray(DB.leads)) DB.leads=[];
+      var lead=DB.leads.find(function(l){ return normName(l.name)===n; });
+      if(lead){
+        // ya existe: solo completar lote de interés si estaba vacío
+        if(!lead.loteInteres && rec.lote) lead.loteInteres=rec.lote;
+        return;
+      }
+      DB.leads.push({ id:"ld_"+Date.now(), name:rec.cliente.trim(),
+        tel:"", email:"", loteInteres:rec.lote||"", etapa:"Prospecto",
+        montoReserva:0, vend:rec.vend||"", nota:"Creado desde cotización "+rec.num });
+      audit("Prospecto creado (auto)", rec.cliente.trim()+" · desde "+rec.num);
+    }catch(_){}
   }
   function delQuote(id){
     if(!confirm("¿Eliminar esta cotización del historial? (No borra el PDF ya generado.)")) return;
