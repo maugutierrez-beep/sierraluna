@@ -418,6 +418,24 @@
 .mora-cfg{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .mora-cfg label{font-size:12.5px;color:var(--ink-soft);font-weight:600}
 .mora-cfg input{width:100px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+/* ===== Cotizaciones ===== */
+.cot-wrap{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start}
+.cot-form{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cot-form .fg2{grid-column:1 / -1}
+.cot-form .fg{display:flex;flex-direction:column;gap:5px}
+.cot-form label{font-size:11px;color:var(--ink-soft);font-weight:600}
+.cot-form input,.cot-form select{padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;width:100%}
+.cot-actions{grid-column:1 / -1;display:flex;gap:10px;margin-top:4px}
+.cot-prev{background:var(--f2);border:1px solid var(--line-soft);border-radius:12px;padding:16px 18px}
+.cot-prev h4{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:10px}
+.pv-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dotted var(--line);font-size:12.5px}
+.pv-row .pl{color:var(--ink-soft)}
+.pv-row .pv{font-weight:600;color:var(--navy);text-align:right}
+.pv-big{margin-top:12px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
+.pv-big .pbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600}
+.pv-big .pbv{font-size:22px;font-weight:700;color:var(--navy);margin-top:2px}
+.pv-big.gold{background:#fdf4e3;border-color:var(--amber)}
+.pv-big.gold .pbv{color:#a9741f}
   .rec-bar .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .rec-bar .s b{font-size:20px;color:var(--navy);font-weight:700}
   .rec-list{display:flex;flex-direction:column;gap:8px}
@@ -607,6 +625,7 @@
     <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()">Sistema</button>
     <button class="tab" data-tab="flujo" onclick="showTab('flujo');renderFlujo();renderMora()">Flujo</button>
     <button class="tab" data-tab="prospectos" onclick="showTab('prospectos');renderProspectos()">Prospectos</button>
+    <button class="tab" data-tab="cotizaciones" onclick="showTab('cotizaciones');renderCotizaciones()">Cotizaciones</button>
   </div>
 
   <!-- Charts -->
@@ -859,6 +878,46 @@
       <div><h2>Pipeline comercial</h2><div class="desc">Embudo de prospectos, reservas y promesas en gestión para los lotes restantes. Separado de las promesas firmadas.</div></div>
     </div>
     <div id="prosp_body" style="padding:14px 18px 18px"></div>
+  </div>
+  <!-- ===== Cotizaciones ===== -->
+  <div class="panel sec-hidden" data-section="cotizaciones">
+    <div class="panel-h">
+      <div><h2>Cotizaciones</h2><div class="desc">Emite cotizaciones comerciales en PDF con la identidad de Sierraluna. Prefill desde compradores, prospectos o inventario; el historial queda numerado.</div></div>
+    </div>
+    <div style="padding:16px 18px 18px">
+      <div class="cot-wrap">
+        <div class="cot-form">
+          <div class="fg fg2"><label>Prefill (opcional)</label>
+            <select id="q_prefill" onchange="prefillQuote(this.value)"><option value="">— Prefill desde… (opcional) —</option></select></div>
+          <div class="fg"><label>Cliente</label><input id="q_cliente" type="text" placeholder="Por definir" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Vendedor</label><input id="q_vend" type="text" placeholder="Opcional"></div>
+          <div class="fg"><label>Etapa</label><select id="q_etapa" onchange="renderQuotePreview()"><option value="1">1</option><option value="2" selected>2</option></select></div>
+          <div class="fg"><label>Lote</label><input id="q_lote" type="text" placeholder="Ej: G2" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Área (m²)</label><input id="q_area" type="text" inputmode="decimal" placeholder="1.250" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Precio por m²</label><input id="q_pm2" type="text" inputmode="numeric" placeholder="410.000" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Cuota inicial (%)</label><input id="q_ini" type="number" step="1" value="20" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Plazo del saldo (meses)</label><input id="q_plazo" type="number" step="1" value="24" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Descuento de contado (%)</label><input id="q_desc" type="number" step="1" value="10" oninput="renderQuotePreview()"></div>
+          <div class="fg"><label>Válida por (días)</label><input id="q_valida" type="number" step="1" value="7" oninput="renderQuotePreview()"></div>
+          <div class="fg fg2"><label>Entrega estimada del lote</label><input id="q_entrega" type="text" placeholder="Julio de 2028"></div>
+          <div class="cot-actions">
+            <button class="btn-gold" onclick="saveQuote(true)">Guardar y generar PDF</button>
+            <button class="btn-sys" onclick="previewQuote()">Solo previsualizar</button>
+          </div>
+        </div>
+        <div class="cot-prev">
+          <h4>Vista previa</h4>
+          <div class="pv-row"><span class="pl">Cuota inicial</span><span class="pv" id="qp_cuotaini">—</span></div>
+          <div class="pv-row"><span class="pl">Saldo restante</span><span class="pv" id="qp_saldo">—</span></div>
+          <div class="pv-row"><span class="pl">Cuota mensual</span><span class="pv" id="qp_cuotames">—</span></div>
+          <div class="pv-row"><span class="pl">Descuento contado</span><span class="pv" id="qp_desc">—</span></div>
+          <div class="pv-big"><div class="pbl">Valor comercial del lote</div><div class="pbv" id="qp_valor">—</div></div>
+          <div class="pv-big gold"><div class="pbl">Valor final de contado</div><div class="pbv" id="qp_contado">—</div></div>
+        </div>
+      </div>
+      <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:22px 0 10px">Historial de cotizaciones</h4>
+      <div id="cot_hist"></div>
+    </div>
   </div>
 </div>
 
@@ -4554,5 +4613,262 @@ function logout(){
   window.saveLead=saveLead;
   window.delLead=delLead;
   window.leadToBuyer=leadToBuyer;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v3: Cotizaciones comerciales (PDF)
+   Formulario (manual + prefill) · historial numerado + bitácora ·
+   plantilla PDF impresa desde el navegador. Tokens del dashboard.
+   ============================================================ */
+(function(){
+  "use strict";
+  function audit(a,d){ try{ if(window.slAudit) window.slAudit({action:a,detail:d}); }catch(_){} }
+  function cfg(){ if(!DB.config) DB.config={}; return DB.config; }
+  function qmoney(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function num(n){ return (+n||0).toLocaleString("es-CO"); }
+
+  /* ---------- Cálculo ---------- */
+  function computeQuote(q){
+    var area=+q.area||0, pm2=+q.pm2||0;
+    var valor=Math.round(area*pm2);
+    var iniPct=(+q.ini||0)/100, descPct=(+q.desc||0)/100;
+    var plazo=Math.max(1,Math.round(+q.plazo||1));
+    var cuotaIni=Math.round(valor*iniPct);
+    var saldo=valor-cuotaIni;
+    var cuotaMes=Math.floor(saldo/plazo);
+    var cuotaLast=saldo-cuotaMes*(plazo-1);
+    var descuento=Math.round(valor*descPct);
+    var contado=valor-descuento;
+    return {valor:valor,cuotaIni:cuotaIni,saldo:saldo,cuotaMes:cuotaMes,cuotaLast:cuotaLast,
+            descuento:descuento,contado:contado,plazo:plazo,iniPct:+q.ini||0,descPct:+q.desc||0,
+            saldoPct:100-(+q.ini||0)};
+  }
+
+  /* ---------- Numeración ---------- */
+  function nextQuoteNum(commit){
+    var seq=(cfg().quoteSeq||0)+1;
+    if(commit) cfg().quoteSeq=seq;
+    return "COT-"+new Date().getFullYear()+"-"+String(seq).padStart(3,"0");
+  }
+
+  /* ---------- Formulario ---------- */
+  function gv(id){ var e=document.getElementById(id); return e?e.value:""; }
+  function readQuoteForm(){
+    return {
+      cliente: gv("q_cliente").trim()||"Por definir",
+      etapa: gv("q_etapa"),
+      lote: gv("q_lote").trim(),
+      area: parseNum(gv("q_area"))||0,
+      pm2: parseNum(gv("q_pm2"))||0,
+      ini: parseFloat(gv("q_ini"))||0,
+      plazo: parseInt(gv("q_plazo"))||0,
+      desc: parseFloat(gv("q_desc"))||0,
+      entrega: gv("q_entrega").trim(),
+      valida: parseInt(gv("q_valida"))||7,
+      vend: gv("q_vend").trim()
+    };
+  }
+  function renderQuotePreview(){
+    var q=readQuoteForm(), c=computeQuote(q);
+    var set=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+    set("qp_valor", qmoney(c.valor));
+    set("qp_cuotaini", qmoney(c.cuotaIni)+"  ("+c.iniPct+"%)");
+    set("qp_saldo", qmoney(c.saldo)+"  ("+c.saldoPct+"%)");
+    set("qp_cuotames", qmoney(c.cuotaMes)+"  × "+c.plazo+" meses");
+    set("qp_desc", "− "+qmoney(c.descuento)+"  ("+c.descPct+"%)");
+    set("qp_contado", qmoney(c.contado));
+  }
+
+  /* ---------- Prefill (compradores / prospectos / lotes) ---------- */
+  function fillPrefillOptions(){
+    var sel=document.getElementById("q_prefill"); if(!sel) return;
+    var html='<option value="">— Prefill desde… (opcional) —</option>';
+    var buyers=(DB.buyers||[]).filter(function(b){return b.code!=="PD"&&b.name;});
+    if(buyers.length){
+      html+='<optgroup label="Compradores">';
+      buyers.forEach(function(b){ html+='<option value="buyer:'+b.id+'">'+(b.code||"")+" "+b.name+'</option>'; });
+      html+='</optgroup>';
+    }
+    var leads=(DB.leads||[]);
+    if(leads.length){
+      html+='<optgroup label="Prospectos">';
+      leads.forEach(function(l){ html+='<option value="lead:'+l.id+'">'+l.name+(l.loteInteres?" · "+l.loteInteres:"")+'</option>'; });
+      html+='</optgroup>';
+    }
+    var lots=(DB.availLots||[]).concat(DB.availLots2||[]);
+    if(lots.length){
+      html+='<optgroup label="Lotes disponibles">';
+      lots.forEach(function(L){ html+='<option value="lot:'+L+'">Lote '+L+'</option>'; });
+      html+='</optgroup>';
+    }
+    sel.innerHTML=html;
+  }
+  function prefillQuote(v){
+    if(!v) return;
+    var set=function(id,val){ var e=document.getElementById(id); if(e&&val!=null&&val!=="") e.value=val; };
+    var kind=v.split(":")[0], key=v.substring(v.indexOf(":")+1);
+    if(kind==="buyer"){
+      var b=(DB.buyers||[]).find(function(x){return x.id===key;}); if(!b) return;
+      set("q_cliente",b.name); set("q_lote",b.lote); set("q_area",b.tam); set("q_pm2",b.pm2);
+    } else if(kind==="lead"){
+      var l=(DB.leads||[]).find(function(x){return x.id===key;}); if(!l) return;
+      set("q_cliente",l.name); set("q_lote",l.loteInteres);
+    } else if(kind==="lot"){
+      set("q_lote",key);
+    }
+    renderQuotePreview();
+  }
+
+  /* ---------- Guardar + historial ---------- */
+  function saveQuote(andPrint){
+    var q=readQuoteForm();
+    if(!q.area||!q.pm2){ alert("Ingresa el área y el precio por m² para cotizar."); return; }
+    var rec=Object.assign({}, q, {id:"q_"+Date.now(), num:nextQuoteNum(true), ts:Date.now(), fecha:new Date().toISOString().slice(0,10)});
+    if(!Array.isArray(DB.quotes)) DB.quotes=[];
+    DB.quotes.push(rec);
+    audit("Cotización emitida", rec.num+" · "+rec.cliente+" · lote "+(rec.lote||"—"));
+    if(window.save) save();
+    renderQuotes();
+    if(andPrint) printQuote(rec);
+  }
+  function delQuote(id){
+    if(!confirm("¿Eliminar esta cotización del historial? (No borra el PDF ya generado.)")) return;
+    DB.quotes=(DB.quotes||[]).filter(function(x){return x.id!==id;});
+    audit("Cotización eliminada","");
+    if(window.save) save(); renderQuotes();
+  }
+  function renderQuotes(){
+    var el=document.getElementById("cot_hist"); if(!el) return;
+    var Q=(DB.quotes||[]).slice().reverse();
+    if(!Q.length){ el.innerHTML='<div class="hc-item ok"><span class="hc-ico">·</span><div>Sin cotizaciones emitidas todavía. Llena el formulario y genera la primera; quedará numerada aquí.</div></div>'; return; }
+    var rows=Q.map(function(q){
+      var c=computeQuote(q);
+      return '<tr><td class="au-user">'+q.num+'</td><td>'+q.fecha+'</td><td>'+(q.cliente||"—")+'</td><td>'+(q.lote||"—")+'</td>'+
+        '<td style="text-align:right">'+qmoney(c.valor)+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+          '<button class="btn-mini" title="Reimprimir PDF" onclick="printQuoteById(\''+q.id+'\')">⎙</button> '+
+          '<button class="btn-mini danger" title="Eliminar" onclick="delQuote(\''+q.id+'\')">✕</button>'+
+        '</td></tr>';
+    }).join("");
+    el.innerHTML='<table class="au-list"><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Lote</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  function printQuoteById(id){ var q=(DB.quotes||[]).find(function(x){return x.id===id;}); if(q) printQuote(q); }
+  function previewQuote(){ var q=readQuoteForm(); if(!q.area||!q.pm2){ alert("Ingresa el área y el precio por m² para previsualizar."); return; } printQuote(q); }
+
+  function renderCotizaciones(){
+    fillPrefillOptions();
+    renderQuotePreview();
+    renderQuotes();
+  }
+
+  /* ---------- Plantilla PDF ---------- */
+  var MOUNTAIN='<svg viewBox="0 0 210 68" width="150" xmlns="http://www.w3.org/2000/svg">'+
+    '<path d="M4 60 L44 20 L66 40 L98 6 L128 40 L152 24 L206 60 Z" fill="none" stroke="#1A3352" stroke-width="2.4" stroke-linejoin="round"/>'+
+    '<g stroke="#1A3352" stroke-width="0.9" opacity="0.45">'+
+    '<line x1="98" y1="10" x2="98" y2="58"/><line x1="90" y1="20" x2="90" y2="58"/><line x1="106" y1="20" x2="106" y2="58"/>'+
+    '<line x1="82" y1="30" x2="82" y2="58"/><line x1="114" y1="30" x2="114" y2="58"/><line x1="44" y1="24" x2="44" y2="58"/>'+
+    '<line x1="128" y1="44" x2="128" y2="58"/><line x1="66" y1="44" x2="66" y2="58"/></g></svg>';
+
+  function buildQuoteHTML(q){
+    var c=computeQuote(q);
+    var fechaTxt=(function(){ var d=q.fecha?new Date(q.fecha+"T12:00"):new Date();
+      var M=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+      return d.getDate()+" de "+M[d.getMonth()]+" de "+d.getFullYear(); })();
+    var cond=["La cuota inicial del "+c.iniPct+"% deberá pagarse al momento de la firma de la promesa de compraventa.",
+      "El saldo restante será pagado directamente a Sierraluna Group S.A.S., sin intereses, en "+c.plazo+" cuotas mensuales iguales.",
+      "Si el comprador opta por pago de contado, se otorgará un descuento del "+c.descPct+"% sobre el valor comercial del lote.",
+      "Esta cotización corresponde a 1 lote de "+num(q.area)+" m² en la Etapa "+(q.etapa||"—")+".",
+      "Los valores aquí indicados no constituyen precio general de lista del proyecto.",
+      "Los valores están sujetos a disponibilidad, validación interna y firma de la promesa de compraventa.",
+      "Validez de la propuesta: "+q.valida+" días calendario."];
+    var barCell=function(lbl,val){ return '<div class="qb-cell"><div class="qb-l">'+lbl+'</div><div class="qb-v">'+val+'</div></div>'; };
+    var row=function(l,v){ return '<div class="qrow"><span class="ql">'+l+'</span><span class="qv">'+v+'</span></div>'; };
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>'+q.num+'</title>'+
+    '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">'+
+    '<style>'+
+    '@page{size:A4;margin:12mm}'+
+    '*{box-sizing:border-box;margin:0;padding:0}'+
+    'body{font-family:"Montserrat",system-ui,sans-serif;color:#1f2a38;font-size:11px;line-height:1.4}'+
+    '.qhead{display:flex;justify-content:space-between;align-items:center;padding-bottom:12px}'+
+    '.qlogo{text-align:center}'+
+    '.qbrand{font-size:22px;letter-spacing:8px;color:#1A3352;font-weight:700;margin-top:2px}'+
+    '.qbrand-sub{font-size:9px;letter-spacing:5px;color:#52688a;font-weight:600;margin-top:3px}'+
+    '.qrender{width:250px;height:96px;border-radius:8px;background:linear-gradient(135deg,#274a72,#122742);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}'+
+    '.qrender span{color:rgba(255,255,255,.85);font-size:10px;letter-spacing:3px;font-weight:600}'+
+    '.qrender::after{content:"";position:absolute;bottom:0;left:0;right:0;height:34px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.35))}'+
+    '.qbar{display:flex;background:#1A3352;border-radius:8px;color:#fff;padding:10px 0;margin-bottom:14px}'+
+    '.qb-cell{flex:1;padding:0 16px;border-right:1px solid rgba(255,255,255,.18)}'+
+    '.qb-cell:last-child{border-right:none}'+
+    '.qb-l{font-size:8.5px;letter-spacing:1px;color:#c98a2f;font-weight:700;text-transform:uppercase}'+
+    '.qb-v{font-size:11px;font-weight:500;margin-top:2px}'+
+    '.qtitle{text-align:center;font-size:22px;font-weight:700;color:#1A3352;letter-spacing:1px;margin:6px 0 16px}'+
+    '.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}'+
+    '.qcard{border:1.5px solid #1A3352;border-radius:10px;padding:14px 16px}'+
+    '.qcard-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}'+
+    '.qnum{width:22px;height:22px;border-radius:50%;background:#1A3352;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto}'+
+    '.qcard-h h3{font-size:12.5px;color:#1A3352;font-weight:700;letter-spacing:.5px}'+
+    '.qdiv{text-align:center;color:#c98a2f;font-size:9px;margin:2px 0 8px}'+
+    '.qrow{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted #e0e4ea;font-size:10.5px}'+
+    '.qrow:last-of-type{border-bottom:none}'+
+    '.ql{color:#5b6573}.qv{color:#1f2a38;font-weight:600;text-align:right}'+
+    '.qtot{text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid #eceef2}'+
+    '.qtot .l{font-size:9px;letter-spacing:1px;color:#5b6573;font-weight:600;text-transform:uppercase}'+
+    '.qtot .v{font-size:22px;font-weight:700;color:#1A3352;margin-top:2px}'+
+    '.qtot.gold{background:#fdf4e3;border:1.5px solid #c98a2f;border-radius:8px;padding:10px;margin-top:12px}'+
+    '.qtot.gold .v{color:#a9741f}'+
+    '.qcond li{margin:0 0 6px 16px;font-size:9.5px;color:#3a4550}'+
+    '.qcond li::marker{color:#c98a2f}'+
+    '.qfoot{text-align:center;margin-top:18px;padding-top:10px;border-top:1px solid #e0e4ea;color:#1A3352}'+
+    '.qfoot .c{font-size:12px;font-weight:700;letter-spacing:3px}'+
+    '.qfoot .n{font-size:9px;letter-spacing:3px;color:#52688a;margin-top:2px}'+
+    '</style></head><body>'+
+    '<div class="qhead"><div class="qlogo">'+MOUNTAIN+'<div class="qbrand">SIERRALUNA</div><div class="qbrand-sub">CLUB RESIDENCIAL</div></div>'+
+      '<div class="qrender"><span>SIERRALUNA CLUB RESIDENCIAL</span></div></div>'+
+    '<div class="qbar">'+barCell("Cliente",q.cliente||"Por definir")+barCell("Etapa",q.etapa||"—")+barCell("Fecha",fechaTxt)+barCell("Válida por",q.valida+" días")+'</div>'+
+    '<div class="qtitle">COTIZACIÓN COMERCIAL INDIVIDUAL</div>'+
+    '<div class="qgrid">'+
+      /* 1 */
+      '<div class="qcard"><div class="qcard-h"><span class="qnum">1</span><h3>INFORMACIÓN DEL LOTE</h3></div><div class="qdiv">◆</div>'+
+        row("Proyecto","Sierraluna Club Residencial")+row("Etapa",q.etapa||"—")+row("Lote",q.lote||"—")+
+        row("Área estimada del lote",num(q.area)+" m²")+row("Precio actual de mercado",qmoney(q.pm2)+" por m²")+
+        row("Entrega estimada del lote",q.entrega||"—")+
+        '<div class="qtot"><div class="l">Valor comercial actual del lote</div><div class="v">'+qmoney(c.valor)+'</div></div></div>'+
+      /* 2 */
+      '<div class="qcard"><div class="qcard-h"><span class="qnum">2</span><h3>FORMA DE PAGO</h3></div><div class="qdiv">◆</div>'+
+        row("Cuota inicial ("+c.iniPct+"%)",qmoney(c.cuotaIni))+row("Condición de la cuota inicial","A la firma de la promesa")+
+        row("Saldo restante ("+c.saldoPct+"%)",qmoney(c.saldo))+row("Plazo para pago del saldo",c.plazo+" meses")+
+        row("Cuota mensual ("+c.plazo+" meses)",qmoney(c.cuotaMes))+row("Intereses","0%")+
+        '<div class="qtot"><div class="l">Total de la propuesta</div><div class="v">'+qmoney(c.valor)+'</div></div></div>'+
+      /* 3 */
+      '<div class="qcard"><div class="qcard-h"><span class="qnum">3</span><h3>OPCIÓN DE PAGO DE CONTADO</h3></div><div class="qdiv">◆</div>'+
+        row("Valor comercial actual",qmoney(c.valor))+row("Descuento por pago de contado ("+c.descPct+"%)","− "+qmoney(c.descuento))+
+        '<div class="qtot gold"><div class="l">Valor final de contado</div><div class="v">'+qmoney(c.contado)+'</div></div></div>'+
+      /* 4 */
+      '<div class="qcard"><div class="qcard-h"><span class="qnum">4</span><h3>CONDICIONES GENERALES</h3></div><div class="qdiv">◆</div>'+
+        '<ul class="qcond">'+cond.map(function(x){return "<li>"+x+"</li>";}).join("")+'</ul></div>'+
+    '</div>'+
+    '<div class="qfoot"><div class="c">SIERRALUNA GROUP S.A.S.</div><div class="n">NIT. 901-814-712-8</div></div>'+
+    '</body></html>';
+  }
+
+  function printQuote(q){
+    var win=window.open("","_blank","width=900,height=1100");
+    if(!win){ alert("Permite las ventanas emergentes para generar el PDF de la cotización."); return; }
+    win.document.write(buildQuoteHTML(q));
+    win.document.close();
+    win.onload=function(){ setTimeout(function(){ try{ win.focus(); win.print(); }catch(_){}}, 500); };
+  }
+
+  /* ---------- Exponer ---------- */
+  window.renderCotizaciones=renderCotizaciones;
+  window.renderQuotePreview=renderQuotePreview;
+  window.prefillQuote=prefillQuote;
+  window.saveQuote=saveQuote;
+  window.delQuote=delQuote;
+  window.printQuote=printQuote;
+  window.printQuoteById=printQuoteById;
+  window.previewQuote=previewQuote;
 })();
 </script>
