@@ -5316,21 +5316,21 @@ function logout(){
     return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Promesa de Compraventa - '+esc(d.nom1)+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">'+
     '<style>'+
-    '@page{size:A4;margin:12mm 15mm 16mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:""}@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:"Montserrat",sans-serif;font-size:7.5px;color:#6b7686}}'+
+    '@page{size:A4;margin:12mm 15mm 16mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:"SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OF. 201, VALLEDUPAR · INFO@SIERRALUNA.CO";font-family:"Montserrat",sans-serif;font-size:6.6px;letter-spacing:.5px;color:#6b7686}@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:"Montserrat",sans-serif;font-size:7.5px;color:#6b7686}}'+
     '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     'body{font-family:"Montserrat",system-ui,sans-serif;font-size:8.8px;line-height:1.58;color:#222b3a;text-align:justify}'+
     'table.pt{width:100%;border-collapse:collapse}'+
     'table.pt>thead{display:table-header-group}'+
-    'table.pt>tfoot{display:table-footer-group}'+
+    
     'table.pt>thead>tr>td{padding:0 0 10px}'+
     'table.pt>tbody>tr>td{padding:0}'+
-    'table.pt>tfoot>tr>td{padding:10px 0 0}'+
+    
     '.phead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:6px}'+
     '.phead img{height:34px}'+
     '.pht{text-align:right}'+
     '.pht .a{font-size:8px;font-weight:700;letter-spacing:1.6px;color:#1A3352;text-transform:uppercase}'+
     '.pht .b{font-size:7.5px;color:#c98a2f;font-weight:600;letter-spacing:.6px;margin-top:1px}'+
-    '.pfoot{text-align:center;font-size:6.8px;letter-spacing:.8px;color:#6b7686;border-top:1px solid #dfe4ec;padding-top:6px}'+
+    
     'h1{font-size:13px;text-align:center;letter-spacing:3px;margin:0 0 3px;color:#1A3352;font-weight:800}'+
     '.gold{width:60px;height:3px;background:linear-gradient(90deg,#c98a2f,#e3b45c);margin:0 auto 12px;border-radius:2px}'+
     '.meta{text-align:center;font-size:8px;color:#5b6573;letter-spacing:.5px;margin-bottom:12px}'+
@@ -5355,7 +5355,7 @@ function logout(){
     '<table class="pt"><thead><tr><td>'+
     '<div class="phead"><img src="data:image/png;base64,'+LOGO_NAVY+'" alt="Sierraluna Group S.A.S."><div class="pht"><div class="a">Contrato de Promesa de Compraventa</div><div class="b">Lote '+esc(d.lote||"—")+'</div></div></div>'+
     '</td></tr></thead>'+
-    '<tfoot><tr><td><div class="pfoot">SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OFICINA 201, VALLEDUPAR, CESAR · INFO@SIERRALUNA.CO</div></td></tr></tfoot>'+
+    
     '<tbody><tr><td>'+
     '<h1>CONTRATO DE PROMESA DE COMPRAVENTA</h1><div class="gold"></div>'+
     '<div class="meta">Lote '+esc(d.lote||"—")+' · Proyecto Sierraluna Club Residencial · Expedido el '+fD.getDate()+' de '+MESES[fD.getMonth()]+' de '+fD.getFullYear()+'</div>'+
