@@ -441,7 +441,7 @@
 .pg-tag{position:absolute;top:-8px;left:12px;background:var(--navy);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;border-radius:99px}
 .pg-tag.serie{background:#c98a2f}
 .pg-grid{display:grid;gap:10px;margin-top:6px}
-.pg-grid.u{grid-template-columns:1.4fr 1fr .9fr 1.4fr}
+.pg-grid.u{grid-template-columns:1.3fr .55fr .95fr .85fr 1.2fr}
 .pg-grid.s{grid-template-columns:.8fr 1.2fr .7fr 1fr}
 .pg-grid .fg{display:flex;flex-direction:column;gap:4px}
 .pg-grid label{font-size:10.5px;color:var(--ink-soft);font-weight:600}
@@ -5051,6 +5051,7 @@ function logout(){
   }
   var MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   var DIAS=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  function hoyLocalISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
   function fechaLargaConDia(iso){ // "el día lunes veintiocho (28) de octubre de 2025"
     if(!iso) return "la fecha acordada entre las Partes";
     var d=new Date(iso+"T12:00");
@@ -5073,6 +5074,7 @@ function logout(){
       div.innerHTML='<div class="pg-tag">Pago único</div>'+
         '<div class="pg-grid u">'+
         '<div class="fg"><label>Concepto</label><input class="cp_concepto" type="text" placeholder="Primer pago" value="'+(pre.concepto||"")+'"></div>'+
+        '<div class="fg"><label>% del precio</label><input class="cp_pct" type="number" step="0.1" min="0" placeholder="5" oninput="pgPct(this)"></div>'+
         '<div class="fg"><label>Monto</label><input class="cp_monto" type="text" inputmode="numeric" placeholder="19.807.500" value="'+(pre.monto?(+pre.monto).toLocaleString("es-CO"):"")+'" oninput="renderContractPreview()"></div>'+
         '<div class="fg"><label>Fecha límite</label><input class="cp_fecha" type="date" value="'+(pre.fecha||"")+'"></div>'+
         '<div class="fg"><label>Nota (opcional)</label><input class="cp_nota" type="text" placeholder="a título de cuota inicial de separación" value="'+(pre.nota||"")+'"></div>'+
@@ -5088,6 +5090,17 @@ function logout(){
     }
     box.appendChild(div);
     renderContractPreview();
+  }
+  function pgPct(el){
+    try{
+      var row=el.closest(".pg-item"); if(!row) return;
+      var precio=parseNum(document.getElementById("c_precio").value)||0;
+      var pct=parseFloat(el.value)||0;
+      if(precio>0 && pct>0){
+        row.querySelector(".cp_monto").value=Math.round(precio*pct/100).toLocaleString("es-CO");
+      }
+      renderContractPreview();
+    }catch(_){}
   }
   function delPagoRow(id){ var e=document.getElementById(id); if(e) e.remove(); renderContractPreview(); }
   function readPagos(){
@@ -5241,6 +5254,7 @@ function logout(){
     el.innerHTML='<table class="au-list"><thead><tr><th>Firma</th><th>Comprador(es)</th><th>Lote</th><th style="text-align:right">Precio</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
   }
   function renderContratos(){ fillContractPrefill(); renderContractPreview(); renderContracts();
+    var _f=document.getElementById("c_firma"); if(_f&&!_f.value){ _f.value=hoyLocalISO(); }
     var box=document.getElementById("c_pagos");
     if(box && !box.children.length){ addPagoRow("unico",{concepto:"Primer pago"}); addPagoRow("serie",{}); }
   }
@@ -5294,37 +5308,58 @@ function logout(){
       var descVal=Math.round(d.prepBase*d.prepPct/100);
       prepTxt="<p>En el evento en que el Promitente Comprador pague antes del "+esc(d.prepFecha||"la fecha acordada")+" la totalidad de los pagos correspondientes al saldo, es decir "+cmoney(d.prepBase)+", tendrá derecho a un descuento equivalente al "+numALetras(d.prepPct)+" por ciento ("+d.prepPct+"%) del valor pagado anticipadamente, es decir, "+pesosLetras(descVal)+" ("+cmoney(descVal)+"), los cuales se descontarán del monto total adeudado.</p>";
     }
-    var firmaTxt = d.firma
-      ? "Se firma a los "+numALetras(new Date(d.firma+"T12:00").getDate())+" ("+new Date(d.firma+"T12:00").getDate()+") días del mes de "+MESES[new Date(d.firma+"T12:00").getMonth()]+" de "+new Date(d.firma+"T12:00").getFullYear()+" en la ciudad de Valledupar, Cesar, Colombia."
-      : "Se firma a los ____ días del mes de ______________ de ______ en la ciudad de Valledupar, Cesar, Colombia.";
-    function R(label,body){ return '<tr><td class="lab">'+label+'</td><td class="txt">'+body+'</td></tr>'; }
+    var fISO=d.firma||hoyLocalISO();
+    var fD=new Date(fISO+"T12:00");
+    var firmaTxt="Se firma a los "+numALetras(fD.getDate())+" ("+fD.getDate()+") días del mes de "+MESES[fD.getMonth()]+" de "+fD.getFullYear()+" en la ciudad de Valledupar, Cesar, Colombia.";
+    function R(label,body){ return '<section class="cl"><h2>'+String(label).replace(/<br>/g," ")+'</h2><div class="cb">'+body+'</div></section>'; }
     var draft = d.final? "" : '<div class="draftwm">BORRADOR</div>';
     return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Promesa de Compraventa - '+esc(d.nom1)+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">'+
     '<style>'+
-    '@page{size:A4;margin:14mm 13mm}'+
+    '@page{size:A4;margin:11mm 15mm 12mm}'+
     '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:8.6px;line-height:1.5;color:#1f2a38}'+
-    '.head{text-align:center;margin-bottom:10px}'+
-    '.head img{width:150px}'+
-    'h1{font-size:11px;text-align:center;letter-spacing:.6px;margin:8px 0 12px;color:#111}'+
-    'table.ct{width:100%;border-collapse:collapse}'+
-    'table.ct td{border:1px solid #444;padding:7px 9px;vertical-align:top}'+
-    'td.lab{width:98px;text-align:center;font-weight:600;font-size:8.4px}'+
-    'td.txt p{margin:0 0 7px}td.txt p:last-child{margin-bottom:0}'+
-    'td.txt ul,td.txt ol{margin:4px 0 7px 16px}'+
-    'td.txt li{margin-bottom:4px}'+
-    '.firma{margin-top:22px;text-align:center;font-size:8.8px}'+
-    '.sigs{display:flex;justify-content:space-around;margin-top:38px;gap:30px}'+
+    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:8.8px;line-height:1.58;color:#222b3a;text-align:justify}'+
+    'table.pt{width:100%;border-collapse:collapse}'+
+    'table.pt>thead{display:table-header-group}'+
+    'table.pt>tfoot{display:table-footer-group}'+
+    'table.pt>thead>tr>td{padding:0 0 10px}'+
+    'table.pt>tbody>tr>td{padding:0}'+
+    'table.pt>tfoot>tr>td{padding:10px 0 0}'+
+    '.phead{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:6px}'+
+    '.phead img{height:34px}'+
+    '.pht{text-align:right}'+
+    '.pht .a{font-size:8px;font-weight:700;letter-spacing:1.6px;color:#1A3352;text-transform:uppercase}'+
+    '.pht .b{font-size:7.5px;color:#c98a2f;font-weight:600;letter-spacing:.6px;margin-top:1px}'+
+    '.pfoot{text-align:center;font-size:6.8px;letter-spacing:.8px;color:#6b7686;border-top:1px solid #dfe4ec;padding-top:6px}'+
+    'h1{font-size:13px;text-align:center;letter-spacing:3px;margin:0 0 3px;color:#1A3352;font-weight:800}'+
+    '.gold{width:60px;height:3px;background:linear-gradient(90deg,#c98a2f,#e3b45c);margin:0 auto 12px;border-radius:2px}'+
+    '.meta{text-align:center;font-size:8px;color:#5b6573;letter-spacing:.5px;margin-bottom:12px}'+
+    '.cl{margin:0 0 10px}'+
+    '.cl h2{font-size:9px;color:#1A3352;letter-spacing:1.3px;text-transform:uppercase;font-weight:700;margin:0 0 4px;padding-bottom:3px;border-bottom:1px solid #e6eaf1;break-after:avoid;page-break-after:avoid;text-align:left}'+
+    '.cl h2::before{content:"";display:inline-block;width:7px;height:7px;background:#c98a2f;margin-right:7px;border-radius:2px}'+
+    '.cb p{margin:0 0 6px;orphans:3;widows:3}'+
+    '.cb p:last-child{margin-bottom:0}'+
+    '.cb ul,.cb ol{margin:3px 0 7px 17px}'+
+    '.cb li{margin-bottom:3.5px;orphans:3;widows:3}'+
+    '.firma{margin-top:20px;text-align:center;font-size:9px;break-inside:avoid;page-break-inside:avoid}'+
+    '.sig-h{display:flex;justify-content:space-around;margin-top:24px;font-weight:700;font-size:9px;break-inside:avoid}'+
+    '.sigs{display:flex;justify-content:space-around;margin-top:36px;gap:30px;break-inside:avoid;page-break-inside:avoid}'+
     '.sig{flex:1;text-align:center}'+
     '.sig-line{border-top:1px solid #333;margin:0 18px 4px}'+
     '.sig-n{font-weight:700}.sig-d{font-size:8px;color:#444}'+
-    '.sig-h{display:flex;justify-content:space-around;margin-top:26px;font-weight:700;font-size:8.8px}'+
-    '.draftwm{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:110px;font-weight:800;color:rgba(192,57,43,.08);transform:rotate(-28deg);letter-spacing:14px;z-index:0;pointer-events:none}'+
+    '.draftwm{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:110px;font-weight:800;color:rgba(192,57,43,.07);transform:rotate(-28deg);letter-spacing:14px;z-index:0;pointer-events:none}'+
+    '.ptip{background:#fff8e8;border:1px solid #e5c884;border-radius:8px;padding:9px 14px;font-size:10px;color:#7a5b1e;margin:0 0 14px;text-align:left}'+
+    '@media print{.ptip{display:none}}'+
     '</style></head><body>'+draft+
-    '<div class="head"><img src="data:image/png;base64,'+LOGO_NAVY+'" alt="Sierraluna Group S.A.S."></div>'+
-    '<h1>CONTRATO DE PROMESA DE COMPRAVENTA</h1>'+
-    '<table class="ct">'+
+    '<div class="ptip"><b>Para generar el PDF:</b> en el diálogo de impresión elige «Guardar como PDF» y <b>desactiva «Encabezados y pies de página»</b> para que no salgan la fecha del navegador ni «about:blank». Esta nota no sale impresa.</div>'+
+    '<table class="pt"><thead><tr><td>'+
+    '<div class="phead"><img src="data:image/png;base64,'+LOGO_NAVY+'" alt="Sierraluna Group S.A.S."><div class="pht"><div class="a">Contrato de Promesa de Compraventa</div><div class="b">Lote '+esc(d.lote||"—")+'</div></div></div>'+
+    '</td></tr></thead>'+
+    '<tfoot><tr><td><div class="pfoot">SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OFICINA 201, VALLEDUPAR, CESAR · MAURICIO@SIERRALUNA.CO</div></td></tr></tfoot>'+
+    '<tbody><tr><td>'+
+    '<h1>CONTRATO DE PROMESA DE COMPRAVENTA</h1><div class="gold"></div>'+
+    '<div class="meta">Lote '+esc(d.lote||"—")+' · Proyecto Sierraluna Club Residencial · Expedido el '+fD.getDate()+' de '+MESES[fD.getMonth()]+' de '+fD.getFullYear()+'</div>'+
+    '<div class="doc">'+
     R('Partes del Contrato<br>(“<i>las Partes</i>”)',
       '<p><b>El Promitente Vendedor (“<i>el Promitente Vendedor</i>”):</b> <i>SIERRALUNA GROUP S.A.S.</i>, sociedad colombiana, con el NIT 901814712-8, con domicilio en Calle 11 # 11-07 Oficina 201, Barrio San Joaquín, Valledupar, Cesar, representada legalmente por Mauricio Gutiérrez Dangond, mayor de edad, identificado con cédula de ciudadanía número 77.091.382 expedida en Valledupar.</p>'+
       '<p>'+compradorTxt+'</p>')+
@@ -5412,13 +5447,14 @@ function logout(){
     R('Notificaciones',
       '<p>El Promitente Vendedor:<br>Sierraluna Group S.A.S.<br>Mauricio Gutiérrez Dangond<br>Dirección: Calle 11 # 11-07 oficina 201<br>Teléfono: 3126595294<br>E-mail: mauricio@sierraluna.co</p>'+
       '<p>'+notifComp+'</p>')+
-    '</table>'+
+    '</div>'+
     '<div class="firma">'+firmaTxt+'</div>'+
     '<div class="sig-h"><div>El Promitente Vendedor</div><div>'+((d.dos&&d.nom2)?"Los Promitentes Compradores":"El Promitente Comprador")+'</div></div>'+
     '<div class="sigs">'+
       '<div class="sig"><div class="sig-line"></div><div class="sig-n">Mauricio Gutiérrez Dangond</div><div class="sig-d">Sierraluna Group S.A.S. · NIT: 901814712-8</div></div>'+
       firmasComp+
     '</div>'+
+    '</td></tr></tbody></table>'+
     '</body></html>';
   }
   function printContract(d){
@@ -5434,6 +5470,7 @@ function logout(){
   window.prefillContract=prefillContract;
   window.addPagoRow=addPagoRow;
   window.delPagoRow=delPagoRow;
+  window.pgPct=pgPct;
   window.toggleDos=toggleDos;
   window.saveContract=saveContract;
   window.delContract=delContract;
