@@ -436,6 +436,19 @@
 .pv-big .pbv{font-size:22px;font-weight:700;color:var(--navy);margin-top:2px}
 .pv-big.gold{background:#fdf4e3;border-color:var(--amber)}
 .pv-big.gold .pbv{color:#a9741f}
+/* ===== Contratos ===== */
+.pg-item{position:relative;border:1px solid var(--line-soft);border-radius:10px;padding:12px 40px 12px 12px;margin-bottom:10px;background:var(--f2)}
+.pg-tag{position:absolute;top:-8px;left:12px;background:var(--navy);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;border-radius:99px}
+.pg-tag.serie{background:#c98a2f}
+.pg-grid{display:grid;gap:10px;margin-top:6px}
+.pg-grid.u{grid-template-columns:1.4fr 1fr .9fr 1.4fr}
+.pg-grid.s{grid-template-columns:.8fr 1.2fr .7fr 1fr}
+.pg-grid .fg{display:flex;flex-direction:column;gap:4px}
+.pg-grid label{font-size:10.5px;color:var(--ink-soft);font-weight:600}
+.pg-grid input{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;font-family:inherit;background:#fff;width:100%}
+.pg-del{position:absolute;top:10px;right:10px}
+.chkline{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);font-weight:600}
+.chkline input{width:16px;height:16px}
   .rec-bar .s span{display:block;font-size:10.5px;color:var(--ink-soft);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   .rec-bar .s b{font-size:20px;color:var(--navy);font-weight:700}
   .rec-list{display:flex;flex-direction:column;gap:8px}
@@ -626,6 +639,7 @@
     <button class="tab" data-tab="flujo" onclick="showTab('flujo');renderFlujo();renderMora()">Flujo</button>
     <button class="tab" data-tab="prospectos" onclick="showTab('prospectos');renderProspectos()">Prospectos</button>
     <button class="tab" data-tab="cotizaciones" onclick="showTab('cotizaciones');renderCotizaciones()">Cotizaciones</button>
+    <button class="tab" data-tab="contratos" onclick="showTab('contratos');renderContratos()">Contratos</button>
   </div>
 
   <!-- Charts -->
@@ -921,6 +935,63 @@
       </div>
       <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:22px 0 10px">Historial de cotizaciones</h4>
       <div id="cot_hist"></div>
+    </div>
+  </div>
+  <!-- ===== Contratos ===== -->
+  <div class="panel sec-hidden" data-section="contratos">
+    <div class="panel-h">
+      <div><h2>Contratos de promesa</h2><div class="desc">Emite promesas de compraventa con el formato estándar. Diligencia los datos, arma la forma de pago y el sistema redacta el contrato completo con los montos en letras. Revisa siempre antes de firmar.</div></div>
+    </div>
+    <div style="padding:16px 18px 18px">
+      <div class="cot-wrap">
+        <div class="cot-form">
+          <div class="fg fg2"><label>Prefill (opcional)</label>
+            <select id="c_prefill" onchange="prefillContract(this.value)"><option value="">— Prefill desde… (opcional) —</option></select></div>
+          <div class="fg"><label>Comprador — Nombre completo *</label><input id="c_nom1" type="text" placeholder="Nombre y apellidos" oninput="renderContractPreview()"></div>
+          <div class="fg"><label>Cédula *</label><input id="c_cc1" type="text" placeholder="80.074.444"></div>
+          <div class="fg"><label>Ciudad de expedición</label><input id="c_ccciu1" type="text" placeholder="Bogotá"></div>
+          <div class="fg"><label>Teléfono</label><input id="c_tel1" type="text" placeholder="3XX XXX XXXX"></div>
+          <div class="fg fg2"><label class="chkline"><input id="c_dos" type="checkbox" onchange="toggleDos()"> Hay un segundo comprador (cónyuge / socio)</label></div>
+          <div class="fg fg2" id="c_b2" style="display:none;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="fg"><label>Comprador 2 — Nombre completo</label><input id="c_nom2" type="text"></div>
+            <div class="fg"><label>Cédula 2</label><input id="c_cc2" type="text"></div>
+            <div class="fg"><label>Ciudad de expedición 2</label><input id="c_ccciu2" type="text"></div>
+            <div class="fg"><label>Teléfono 2</label><input id="c_tel2" type="text"></div>
+            <div class="fg fg2"><label>Correo 2</label><input id="c_email2" type="text"></div>
+          </div>
+          <div class="fg"><label>Correo</label><input id="c_email1" type="text" placeholder="correo@ejemplo.com"></div>
+          <div class="fg"><label>Ciudad de domicilio</label><input id="c_ciudad" type="text" placeholder="Valledupar, Cesar"></div>
+          <div class="fg fg2"><label>Dirección de domicilio</label><input id="c_dir" type="text" placeholder="Carrera 30A # 1B-215, Apto 34"></div>
+          <div class="fg"><label>Lote (denominación) *</label><input id="c_lote" type="text" placeholder="I5 o 5 de la Manzana 5" oninput="renderContractPreview()"></div>
+          <div class="fg"><label>Área (m²) *</label><input id="c_area" type="text" inputmode="numeric" placeholder="1.390" oninput="renderContractPreview()"></div>
+          <div class="fg"><label>Matrícula inmobiliaria (madre)</label><input id="c_matricula" type="text" value="190-214974"></div>
+          <div class="fg"><label>Ficha catastral (madre)</label><input id="c_ficha" type="text" value="00.01.0003.2470.000"></div>
+          <div class="fg"><label>Precio del inmueble *</label><input id="c_precio" type="text" inputmode="numeric" placeholder="396.150.000" oninput="renderContractPreview()"></div>
+          <div class="fg"><label>Fecha de firma</label><input id="c_firma" type="date"></div>
+          <div class="fg fg2"><label>Forma de pago</label>
+            <div id="c_pagos"></div>
+            <div style="display:flex;gap:10px;margin-top:2px">
+              <button class="btn-sys" onclick="addPagoRow('unico')">＋ Pago único</button>
+              <button class="btn-sys" onclick="addPagoRow('serie')">＋ Serie de cuotas</button>
+            </div>
+          </div>
+          <div class="fg fg2"><label class="chkline"><input id="c_prep" type="checkbox" onchange="renderContractPreview()"> Incluir cláusula de descuento por pago anticipado</label></div>
+          <div class="fg"><label>% descuento prepago</label><input id="c_prep_pct" type="number" step="1" value="10"></div>
+          <div class="fg"><label>Base del prepago ($)</label><input id="c_prep_base" type="text" inputmode="numeric" placeholder="316.920.000"></div>
+          <div class="fg fg2"><label>Fecha límite del prepago (texto)</label><input id="c_prep_fecha" type="text" placeholder="31 de diciembre de 2025"></div>
+          <div class="fg fg2"><label class="chkline"><input id="c_final" type="checkbox"> Versión final (quitar marca de agua BORRADOR)</label></div>
+          <div class="cot-actions">
+            <button class="btn-gold" onclick="saveContract(true)">Guardar y generar contrato</button>
+            <button class="btn-sys" onclick="previewContract()">Solo previsualizar</button>
+          </div>
+        </div>
+        <div class="cot-prev">
+          <h4>Verificación</h4>
+          <div id="con_prev"></div>
+        </div>
+      </div>
+      <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:22px 0 10px">Historial de contratos</h4>
+      <div id="con_hist"></div>
     </div>
   </div>
 </div>
@@ -4936,5 +5007,436 @@ function logout(){
   window.printQuote=printQuote;
   window.printQuoteById=printQuoteById;
   window.previewQuote=previewQuote;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v4: Contratos de Promesa de Compraventa
+   Formato estándar (plantilla Jaime Móvil) · pagos flexibles ·
+   1 o 2 compradores · números a letras · historial + bitácora.
+   ============================================================ */
+(function(){
+  "use strict";
+  function audit(a,d){ try{ if(window.slAudit) window.slAudit({action:a,detail:d}); }catch(_){} }
+  function cmoney(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+
+  /* ---------- Números a letras (validado contra el contrato real) ---------- */
+  function numALetras(n){
+    n=Math.round(Math.abs(+n||0));
+    if(n===0) return "cero";
+    var U=["","uno","dos","tres","cuatro","cinco","seis","siete","ocho","nueve","diez","once","doce","trece","catorce","quince","dieciséis","diecisiete","dieciocho","diecinueve","veinte","veintiuno","veintidós","veintitrés","veinticuatro","veinticinco","veintiséis","veintisiete","veintiocho","veintinueve"];
+    var D=["","","","treinta","cuarenta","cincuenta","sesenta","setenta","ochenta","noventa"];
+    var C=["","ciento","doscientos","trescientos","cuatrocientos","quinientos","seiscientos","setecientos","ochocientos","novecientos"];
+    function t(x){
+      if(x===0) return "";
+      if(x===100) return "cien";
+      var c=Math.floor(x/100), r=x%100, s=C[c], rr;
+      if(r===0) return s;
+      if(r<30) rr=U[r];
+      else { var d=Math.floor(r/10), u=r%10; rr=D[d]+(u?" y "+U[u]:""); }
+      return (s? s+" ":"")+rr;
+    }
+    function apoc(s){ return s.replace(/veintiuno$/,"veintiún").replace(/\buno$/,"un"); }
+    var mill=Math.floor(n/1e6), resto=n%1e6, mil=Math.floor(resto/1000), uni=resto%1000, out=[];
+    if(mill>0) out.push(mill===1 ? "un millón" : apoc(t(mill))+" millones");
+    if(mil>0) out.push(mil===1 ? "mil" : apoc(t(mil))+" mil");
+    if(uni>0) out.push(t(uni));
+    return out.join(" ");
+  }
+  function pesosLetras(n){
+    n=Math.round(+n||0);
+    return numALetras(n).toUpperCase()+((n>=1e6 && n%1e6===0)?" DE PESOS":" PESOS");
+  }
+  var MESES=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  var DIAS=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  function fechaLargaConDia(iso){ // "el día lunes veintiocho (28) de octubre de 2025"
+    if(!iso) return "la fecha acordada entre las Partes";
+    var d=new Date(iso+"T12:00");
+    return "el día "+DIAS[d.getDay()]+" "+numALetras(d.getDate())+" ("+d.getDate()+") de "+MESES[d.getMonth()]+" de "+d.getFullYear();
+  }
+  function mesAnio(ym){ // "2026-02" -> "febrero de 2026"
+    if(!ym||ym.length<7) return "el mes acordado";
+    var p=ym.split("-"); return MESES[(+p[1])-1]+" de "+p[0];
+  }
+
+  /* ---------- Filas de pago dinámicas ---------- */
+  var _pgSeq=0;
+  function addPagoRow(tipo, pre){
+    var box=document.getElementById("c_pagos"); if(!box) return;
+    pre=pre||{};
+    var id="pg"+(++_pgSeq);
+    var div=document.createElement("div");
+    div.className="pg-item"; div.id=id; div.dataset.tipo=tipo;
+    if(tipo==="unico"){
+      div.innerHTML='<div class="pg-tag">Pago único</div>'+
+        '<div class="pg-grid u">'+
+        '<div class="fg"><label>Concepto</label><input class="cp_concepto" type="text" placeholder="Primer pago" value="'+(pre.concepto||"")+'"></div>'+
+        '<div class="fg"><label>Monto</label><input class="cp_monto" type="text" inputmode="numeric" placeholder="19.807.500" value="'+(pre.monto?(+pre.monto).toLocaleString("es-CO"):"")+'" oninput="renderContractPreview()"></div>'+
+        '<div class="fg"><label>Fecha límite</label><input class="cp_fecha" type="date" value="'+(pre.fecha||"")+'"></div>'+
+        '<div class="fg"><label>Nota (opcional)</label><input class="cp_nota" type="text" placeholder="a título de cuota inicial de separación" value="'+(pre.nota||"")+'"></div>'+
+        '</div><button class="btn-mini danger pg-del" onclick="delPagoRow(\''+id+'\')" title="Quitar">✕</button>';
+    } else {
+      div.innerHTML='<div class="pg-tag serie">Serie de cuotas</div>'+
+        '<div class="pg-grid s">'+
+        '<div class="fg"><label>N.º de cuotas</label><input class="cp_n" type="number" min="1" step="1" value="'+(pre.n||24)+'" oninput="renderContractPreview()"></div>'+
+        '<div class="fg"><label>Valor de cada cuota</label><input class="cp_valor" type="text" inputmode="numeric" placeholder="8.000.000" value="'+(pre.valor?(+pre.valor).toLocaleString("es-CO"):"")+'" oninput="renderContractPreview()"></div>'+
+        '<div class="fg"><label>Día de pago</label><input class="cp_dia" type="number" min="1" max="28" step="1" value="'+(pre.dia||5)+'"></div>'+
+        '<div class="fg"><label>Mes de inicio</label><input class="cp_inicio" type="month" value="'+(pre.inicio||"")+'"></div>'+
+        '</div><button class="btn-mini danger pg-del" onclick="delPagoRow(\''+id+'\')" title="Quitar">✕</button>';
+    }
+    box.appendChild(div);
+    renderContractPreview();
+  }
+  function delPagoRow(id){ var e=document.getElementById(id); if(e) e.remove(); renderContractPreview(); }
+  function readPagos(){
+    var out=[];
+    document.querySelectorAll("#c_pagos .pg-item").forEach(function(r){
+      var g=function(cls){ var e=r.querySelector("."+cls); return e?e.value:""; };
+      if(r.dataset.tipo==="unico"){
+        out.push({tipo:"unico",concepto:g("cp_concepto").trim(),monto:parseNum(g("cp_monto"))||0,fecha:g("cp_fecha"),nota:g("cp_nota").trim()});
+      } else {
+        out.push({tipo:"serie",n:parseInt(g("cp_n"))||0,valor:parseNum(g("cp_valor"))||0,dia:parseInt(g("cp_dia"))||5,inicio:g("cp_inicio")});
+      }
+    });
+    return out;
+  }
+  function sumPagos(pagos){
+    return pagos.reduce(function(a,p){ return a+(p.tipo==="unico"?(+p.monto||0):(p.n*p.valor||0)); },0);
+  }
+
+  /* ---------- Formulario ---------- */
+  function gv(id){ var e=document.getElementById(id); return e?e.value:""; }
+  function gc(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
+  function readContractForm(){
+    return {
+      nom1:gv("c_nom1").trim(), cc1:gv("c_cc1").trim(), ccciu1:gv("c_ccciu1").trim(),
+      tel1:gv("c_tel1").trim(), email1:gv("c_email1").trim(),
+      dos:gc("c_dos"),
+      nom2:gv("c_nom2").trim(), cc2:gv("c_cc2").trim(), ccciu2:gv("c_ccciu2").trim(),
+      tel2:gv("c_tel2").trim(), email2:gv("c_email2").trim(),
+      dir:gv("c_dir").trim(), ciudad:gv("c_ciudad").trim(),
+      lote:gv("c_lote").trim(), area:parseNum(gv("c_area"))||0,
+      matricula:gv("c_matricula").trim()||"190-214974",
+      ficha:gv("c_ficha").trim()||"00.01.0003.2470.000",
+      precio:parseNum(gv("c_precio"))||0,
+      pagos:readPagos(),
+      prep:gc("c_prep"), prepPct:parseFloat(gv("c_prep_pct"))||0,
+      prepBase:parseNum(gv("c_prep_base"))||0, prepFecha:gv("c_prep_fecha").trim(),
+      firma:gv("c_firma"), final:gc("c_final")
+    };
+  }
+  function renderContractPreview(){
+    var el=document.getElementById("con_prev"); if(!el) return;
+    var d=readContractForm();
+    var tot=sumPagos(d.pagos), diff=tot-d.precio;
+    var ok=Math.abs(diff)<=1;
+    el.innerHTML=
+      '<div class="pv-row"><span class="pl">Precio del inmueble</span><span class="pv">'+cmoney(d.precio)+'</span></div>'+
+      '<div class="pv-row"><span class="pl">Suma de los pagos</span><span class="pv" style="color:'+(ok?'#1d6b3f':'#c0392b')+'">'+cmoney(tot)+'</span></div>'+
+      (ok? '<div class="hc-item ok" style="margin-top:10px"><span class="hc-ico">✓</span><div>La forma de pago cuadra con el precio.</div></div>'
+         : '<div class="hc-item err" style="margin-top:10px"><span class="hc-ico">!</span><div>La forma de pago difiere del precio en <b>'+cmoney(Math.abs(diff))+'</b> ('+(diff>0?'sobra':'falta')+'). Revisa antes de emitir.</div></div>')+
+      (d.precio>0? '<div class="sys-note" style="margin-top:10px"><b>En letras:</b> '+pesosLetras(d.precio)+' ('+cmoney(d.precio)+')</div>':"");
+  }
+  function toggleDos(){
+    var on=gc("c_dos");
+    var b=document.getElementById("c_b2"); if(b) b.style.display=on?"grid":"none";
+    renderContractPreview();
+  }
+
+  /* ---------- Prefill ---------- */
+  function fillContractPrefill(){
+    var sel=document.getElementById("c_prefill"); if(!sel) return;
+    var html='<option value="">— Prefill desde… (opcional) —</option>';
+    var quotes=(DB.quotes||[]).slice().reverse();
+    if(quotes.length){
+      html+='<optgroup label="Cotizaciones">';
+      quotes.forEach(function(q){ html+='<option value="quote:'+q.id+'">'+q.num+" · "+(q.cliente||"—")+" · lote "+(q.lote||"—")+'</option>'; });
+      html+='</optgroup>';
+    }
+    var buyers=(DB.buyers||[]).filter(function(b){return b.code!=="PD"&&b.name;});
+    if(buyers.length){
+      html+='<optgroup label="Compradores">';
+      buyers.forEach(function(b){ html+='<option value="buyer:'+b.id+'">'+(b.code||"")+" "+b.name+'</option>'; });
+      html+='</optgroup>';
+    }
+    var leads=(DB.leads||[]);
+    if(leads.length){
+      html+='<optgroup label="Prospectos">';
+      leads.forEach(function(l){ html+='<option value="lead:'+l.id+'">'+l.name+(l.loteInteres?" · "+l.loteInteres:"")+'</option>'; });
+      html+='</optgroup>';
+    }
+    sel.innerHTML=html;
+  }
+  function prefillContract(v){
+    if(!v) return;
+    var set=function(id,val){ var e=document.getElementById(id); if(e&&val!=null&&val!=="") e.value=val; };
+    var kind=v.split(":")[0], key=v.substring(v.indexOf(":")+1);
+    if(kind==="buyer"){
+      var b=(DB.buyers||[]).find(function(x){return x.id===key;}); if(!b) return;
+      set("c_nom1",b.name); set("c_cc1",b.nit); set("c_tel1",b.tel); set("c_email1",b.email);
+      set("c_dir",b.dir); set("c_lote",b.lote); set("c_area",b.tam);
+      set("c_precio",(b.total||0).toLocaleString("es-CO"));
+    } else if(kind==="lead"){
+      var l=(DB.leads||[]).find(function(x){return x.id===key;}); if(!l) return;
+      set("c_nom1",l.name); set("c_tel1",l.tel); set("c_email1",l.email); set("c_lote",l.loteInteres);
+    } else if(kind==="quote"){
+      var q=(DB.quotes||[]).find(function(x){return x.id===key;}); if(!q) return;
+      set("c_nom1",q.cliente); set("c_lote",q.lote); set("c_area",q.area);
+      // replicar el cálculo de la cotización
+      var valor=Math.round((+q.area||0)*(+q.pm2||0));
+      var descAd=(q.descadTipo==="%")?Math.round(valor*(+q.descad||0)/100):Math.round(+q.descad||0);
+      descAd=Math.max(0,Math.min(descAd,valor));
+      var neto=valor-descAd;
+      set("c_precio",neto.toLocaleString("es-CO"));
+      var box=document.getElementById("c_pagos"); if(box) box.innerHTML="";
+      var ini=Math.round(neto*(+q.ini||0)/100), plazo=Math.max(1,parseInt(q.plazo)||1);
+      var saldo=neto-ini, cuota=Math.floor(saldo/plazo), resto=saldo-cuota*plazo;
+      addPagoRow("unico",{concepto:"Primer pago",monto:ini,nota:"a título de cuota inicial, a la firma de la promesa"});
+      addPagoRow("serie",{n:plazo,valor:cuota,dia:5});
+      if(resto>0) addPagoRow("unico",{concepto:"Cuota final de ajuste",monto:resto});
+    }
+    renderContractPreview();
+  }
+
+  /* ---------- Guardar + historial ---------- */
+  function saveContract(andPrint){
+    var d=readContractForm();
+    if(!d.nom1||!d.cc1){ alert("Nombre y cédula del comprador son obligatorios."); return; }
+    if(!d.precio||!d.area||!d.lote){ alert("Lote, área y precio son obligatorios."); return; }
+    var tot=sumPagos(d.pagos);
+    if(Math.abs(tot-d.precio)>1 && !confirm("La forma de pago ("+cmoney(tot)+") no cuadra con el precio ("+cmoney(d.precio)+").\n\n¿Emitir de todas formas?")) return;
+    var rec=Object.assign({},d,{id:"ct_"+Date.now(), ts:Date.now()});
+    if(!Array.isArray(DB.contracts)) DB.contracts=[];
+    DB.contracts.push(rec);
+    audit("Contrato de promesa emitido", d.nom1+(d.dos&&d.nom2?" y "+d.nom2:"")+" · lote "+d.lote+" · "+cmoney(d.precio)+(d.final?"":" · BORRADOR"));
+    if(window.save) save();
+    renderContracts();
+    if(andPrint) printContract(rec);
+  }
+  function delContract(id){
+    if(!confirm("¿Eliminar este contrato del historial? (No borra el PDF ya generado.)")) return;
+    DB.contracts=(DB.contracts||[]).filter(function(x){return x.id!==id;});
+    audit("Contrato eliminado del historial","");
+    if(window.save) save(); renderContracts();
+  }
+  function printContractById(id){ var c=(DB.contracts||[]).find(function(x){return x.id===id;}); if(c) printContract(c); }
+  function previewContract(){ var d=readContractForm(); if(!d.nom1||!d.precio){ alert("Completa al menos comprador y precio para previsualizar."); return; } printContract(d); }
+  function renderContracts(){
+    var el=document.getElementById("con_hist"); if(!el) return;
+    var C=(DB.contracts||[]).slice().reverse();
+    if(!C.length){ el.innerHTML='<div class="hc-item ok"><span class="hc-ico">·</span><div>Sin contratos emitidos desde aquí todavía.</div></div>'; return; }
+    var rows=C.map(function(c){
+      var f=c.firma? c.firma.split("-").reverse().join("/") : "—";
+      return '<tr><td>'+f+'</td><td><b>'+c.nom1+(c.dos&&c.nom2?" y "+c.nom2:"")+'</b></td><td>'+(c.lote||"—")+'</td>'+
+        '<td style="text-align:right">'+cmoney(c.precio)+'</td>'+
+        '<td>'+(c.final?'<span class="pill-etapa e3">Final</span>':'<span class="pill-etapa e0">Borrador</span>')+'</td>'+
+        '<td style="text-align:right;white-space:nowrap">'+
+          '<button class="btn-mini" title="Reimprimir" onclick="printContractById(\''+c.id+'\')">⎙</button> '+
+          '<button class="btn-mini danger" title="Eliminar" onclick="delContract(\''+c.id+'\')">✕</button>'+
+        '</td></tr>';
+    }).join("");
+    el.innerHTML='<table class="au-list"><thead><tr><th>Firma</th><th>Comprador(es)</th><th>Lote</th><th style="text-align:right">Precio</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+  function renderContratos(){ fillContractPrefill(); renderContractPreview(); renderContracts();
+    var box=document.getElementById("c_pagos");
+    if(box && !box.children.length){ addPagoRow("unico",{concepto:"Primer pago"}); addPagoRow("serie",{}); }
+  }
+
+  /* ---------- Documento ---------- */
+  var LOGO_NAVY="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";
+  function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function pagoBullet(p, precio){
+    if(p.tipo==="serie"){
+      return "<li>"+(numALetras(p.n).charAt(0).toUpperCase()+numALetras(p.n).slice(1))+" ("+p.n+") cuotas mensuales de "+pesosLetras(p.valor)+" ("+cmoney(p.valor)+") cada una, pagaderas a más tardar el día "+numALetras(p.dia)+" ("+p.dia+") de cada mes, iniciando en "+mesAnio(p.inicio)+".</li>";
+    }
+    var pct = precio>0 ? (p.monto/precio*100) : 0;
+    var pctTxt="";
+    if(pct>0.01){
+      var r=Math.round(pct*100)/100;
+      pctTxt = (r===Math.round(r))
+        ? "equivalente al "+numALetras(r)+" por ciento ("+r+"%), "
+        : "equivalente al "+String(r).replace(".",",")+"%, ";
+    }
+    return "<li><b>"+esc(p.concepto||"Pago")+":</b> "+pctTxt+"correspondiente a "+pesosLetras(p.monto)+" ("+cmoney(p.monto)+"), que se efectuará a más tardar "+fechaLargaConDia(p.fecha)+(p.nota?", "+esc(p.nota):"")+".</li>";
+  }
+  function buildContractHTML(d){
+    var comprador1=esc(d.nom1)+", mayor de edad, identificado con la cédula de ciudadanía número "+esc(d.cc1)+(d.ccciu1?" de "+esc(d.ccciu1):"");
+    var compradorTxt, denomTxt, notifComp, firmasComp;
+    var domicilio=(d.dir?", con domicilio en "+esc(d.dir):"")+(d.ciudad?", "+esc(d.ciudad):"");
+    if(d.dos && d.nom2){
+      var comprador2=esc(d.nom2)+", mayor de edad, identificado(a) con la cédula de ciudadanía número "+esc(d.cc2)+(d.ccciu2?" de "+esc(d.ccciu2):"");
+      compradorTxt="<b>Los Promitentes Compradores (\u201cEl Promitente Comprador\u201d):</b> "+comprador1+"; y "+comprador2+domicilio+
+        (d.email1||d.email2?", y con dirección de correo electrónico "+esc(d.email1)+(d.email2?" y "+esc(d.email2):""):"")+
+        ", quienes para todos los efectos del presente contrato se denominarán conjuntamente como \u201cEl Promitente Comprador\u201d.";
+      notifComp="Los Promitentes Compradores:<br>"+esc(d.nom1)+" — C.C. No. "+esc(d.cc1)+(d.ccciu1?" de "+esc(d.ccciu1):"")+"<br>"+
+        esc(d.nom2)+" — C.C. No. "+esc(d.cc2)+(d.ccciu2?" de "+esc(d.ccciu2):"")+"<br>"+
+        (d.dir?"Dirección: "+esc(d.dir)+(d.ciudad?", "+esc(d.ciudad):"")+"<br>":"")+
+        (d.tel1?"Teléfono: "+esc(d.tel1)+(d.tel2?" / "+esc(d.tel2):"")+"<br>":"")+
+        (d.email1?"E-mail: "+esc(d.email1)+(d.email2?" / "+esc(d.email2):""):"");
+      firmasComp='<div class="sig"><div class="sig-line"></div><div class="sig-n">'+esc(d.nom1)+'</div><div class="sig-d">CC # '+esc(d.cc1)+'</div></div>'+
+                 '<div class="sig"><div class="sig-line"></div><div class="sig-n">'+esc(d.nom2)+'</div><div class="sig-d">CC # '+esc(d.cc2)+'</div></div>';
+    } else {
+      compradorTxt="<b>El Promitente Comprador (\u201cEl Promitente Comprador\u201d):</b> "+comprador1+domicilio+
+        (d.email1?", y con dirección de correo electrónico "+esc(d.email1):"")+
+        ", quien para todos los efectos del presente contrato se denominará como \u201cEl Promitente Comprador\u201d.";
+      notifComp="El Promitente Comprador:<br>"+esc(d.nom1)+"<br>Cédula de ciudadanía No. "+esc(d.cc1)+(d.ccciu1?" de "+esc(d.ccciu1):"")+"<br>"+
+        (d.dir?"Dirección: "+esc(d.dir)+(d.ciudad?", "+esc(d.ciudad):"")+"<br>":"")+
+        (d.tel1?"Teléfono: "+esc(d.tel1)+"<br>":"")+(d.email1?"E-mail: "+esc(d.email1):"");
+      firmasComp='<div class="sig"><div class="sig-line"></div><div class="sig-n">'+esc(d.nom1)+'</div><div class="sig-d">CC # '+esc(d.cc1)+'</div></div>';
+    }
+    var areaTxt=numALetras(d.area)+" metros cuadrados ("+(+d.area).toLocaleString("es-CO")+" m²)";
+    var bullets=d.pagos.map(function(p){ return pagoBullet(p,d.precio); }).join("");
+    var prepTxt="";
+    if(d.prep && d.prepPct>0 && d.prepBase>0){
+      var descVal=Math.round(d.prepBase*d.prepPct/100);
+      prepTxt="<p>En el evento en que el Promitente Comprador pague antes del "+esc(d.prepFecha||"la fecha acordada")+" la totalidad de los pagos correspondientes al saldo, es decir "+cmoney(d.prepBase)+", tendrá derecho a un descuento equivalente al "+numALetras(d.prepPct)+" por ciento ("+d.prepPct+"%) del valor pagado anticipadamente, es decir, "+pesosLetras(descVal)+" ("+cmoney(descVal)+"), los cuales se descontarán del monto total adeudado.</p>";
+    }
+    var firmaTxt = d.firma
+      ? "Se firma a los "+numALetras(new Date(d.firma+"T12:00").getDate())+" ("+new Date(d.firma+"T12:00").getDate()+") días del mes de "+MESES[new Date(d.firma+"T12:00").getMonth()]+" de "+new Date(d.firma+"T12:00").getFullYear()+" en la ciudad de Valledupar, Cesar, Colombia."
+      : "Se firma a los ____ días del mes de ______________ de ______ en la ciudad de Valledupar, Cesar, Colombia.";
+    function R(label,body){ return '<tr><td class="lab">'+label+'</td><td class="txt">'+body+'</td></tr>'; }
+    var draft = d.final? "" : '<div class="draftwm">BORRADOR</div>';
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Promesa de Compraventa - '+esc(d.nom1)+'</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">'+
+    '<style>'+
+    '@page{size:A4;margin:14mm 13mm}'+
+    '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:8.6px;line-height:1.5;color:#1f2a38}'+
+    '.head{text-align:center;margin-bottom:10px}'+
+    '.head img{width:150px}'+
+    'h1{font-size:11px;text-align:center;letter-spacing:.6px;margin:8px 0 12px;color:#111}'+
+    'table.ct{width:100%;border-collapse:collapse}'+
+    'table.ct td{border:1px solid #444;padding:7px 9px;vertical-align:top}'+
+    'td.lab{width:98px;text-align:center;font-weight:600;font-size:8.4px}'+
+    'td.txt p{margin:0 0 7px}td.txt p:last-child{margin-bottom:0}'+
+    'td.txt ul,td.txt ol{margin:4px 0 7px 16px}'+
+    'td.txt li{margin-bottom:4px}'+
+    '.firma{margin-top:22px;text-align:center;font-size:8.8px}'+
+    '.sigs{display:flex;justify-content:space-around;margin-top:38px;gap:30px}'+
+    '.sig{flex:1;text-align:center}'+
+    '.sig-line{border-top:1px solid #333;margin:0 18px 4px}'+
+    '.sig-n{font-weight:700}.sig-d{font-size:8px;color:#444}'+
+    '.sig-h{display:flex;justify-content:space-around;margin-top:26px;font-weight:700;font-size:8.8px}'+
+    '.draftwm{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:110px;font-weight:800;color:rgba(192,57,43,.08);transform:rotate(-28deg);letter-spacing:14px;z-index:0;pointer-events:none}'+
+    '</style></head><body>'+draft+
+    '<div class="head"><img src="data:image/png;base64,'+LOGO_NAVY+'" alt="Sierraluna Group S.A.S."></div>'+
+    '<h1>CONTRATO DE PROMESA DE COMPRAVENTA</h1>'+
+    '<table class="ct">'+
+    R('Partes del Contrato<br>(“<i>las Partes</i>”)',
+      '<p><b>El Promitente Vendedor (“<i>el Promitente Vendedor</i>”):</b> <i>SIERRALUNA GROUP S.A.S.</i>, sociedad colombiana, con el NIT 901814712-8, con domicilio en Calle 11 # 11-07 Oficina 201, Barrio San Joaquín, Valledupar, Cesar, representada legalmente por Mauricio Gutiérrez Dangond, mayor de edad, identificado con cédula de ciudadanía número 77.091.382 expedida en Valledupar.</p>'+
+      '<p>'+compradorTxt+'</p>')+
+    R('Declaraciones del Promitente Vendedor',
+      '<p>El Promitente Vendedor es el propietario y poseedor de un inmueble de mayor extensión identificado con ficha catastral No. '+esc(d.ficha)+' localizado en el km 1 vía a Los Besotes en el municipio de Valledupar, del cual se desenglobará el inmueble objeto de la presente promesa de compraventa.</p>'+
+      '<p>El Promitente Vendedor estructuró en el inmueble de Mayor Extensión un proyecto inmobiliario para la construcción de viviendas (“<i>el Proyecto</i>” o “<i>Sierraluna</i>” o “<i>el Proyecto Sierraluna</i>”).</p>'+
+      '<p>El Proyecto cuenta con licencia de parcelación y construcción otorgada mediante Resolución No. 20001-2-23-0272 de fecha 18 de diciembre de 2023, emanada de la Curaduría Urbana No. 2 de Valledupar, ejecutoriada el 20 de diciembre de 2023. El Proyecto tendrá un Reglamento de Propiedad Horizontal, de conformidad con lo previsto en la Ley 675 de 2001 el cual será parte de la escritura pública de compraventa del Inmueble. El Proyecto tendrá un manual de construcción (“<i>el Manual de Construcción</i>”) que establecerá condiciones arquitectónicas y urbanísticas residenciales y que será de obligatorio cumplimiento para todos los propietarios.</p>')+
+    R('El inmueble (“<i>el Inmueble</i>”)',
+      '<p>El Inmueble objeto de la presente promesa de compraventa corresponde a un lote de terreno de '+areaTxt+' que será desenglobado del Inmueble de Mayor Extensión identificado con la Matrícula Inmobiliaria No. '+esc(d.matricula)+', y que se ha denominado Lote '+esc(d.lote)+', de acuerdo con la Resolución No. 20001-2-23-0272 de fecha 18 de diciembre de 2023. El Promitente Comprador declara que ha inspeccionado físicamente el Inmueble prometido en venta y manifiesta no tener salvedad alguna en cuanto a su localización, dimensiones, especificaciones y/o estado. Igualmente, declara conocer que el mismo hace parte del Proyecto Sierraluna, el cual contempla zonas comunes tales como vías internas pavimentadas actualmente en fase de ejecución, portería, áreas verdes, senderos peatonales, canchas multifuncionales, espacios de recreación y otras amenidades en fase de diseño, las cuales podrán estar sujetas a ajustes según el desarrollo técnico y normativo del proyecto.</p>')+
+    R('Objeto','<p>El presente Contrato tiene por objeto establecer los términos y condiciones bajo los cuales el Promitente Vendedor transferirá al Promitente Comprador el derecho de dominio y posesión del Inmueble.</p>')+
+    R('Sustitución del Inmueble',
+      '<p>Las Partes de común acuerdo y por escrito podrán sustituir el Inmueble objeto de la presente Promesa por otro, siempre y cuando haya disponibilidad en la misma etapa del Proyecto.</p>'+
+      '<p>En caso de que tal sustitución no implique un cambio en cualquiera de las condiciones de negocio (precio, forma de pagos, etc.), las Partes formalizarán dicha sustitución a través de un otrosí. En caso de que tal sustitución implique un cambio en cualquiera de las condiciones de negocio (precio, forma de pago, etc.), las Partes deberán acordar las condiciones correspondientes y consignarlas en el respectivo otrosí.</p>')+
+    R('Precio del Inmueble','<p>El precio del inmueble es de '+pesosLetras(d.precio)+' ('+cmoney(d.precio)+').</p>')+
+    R('Forma de pago del Precio',
+      '<p>El valor total del inmueble asciende a '+pesosLetras(d.precio)+' ('+cmoney(d.precio)+'), los cuales serán pagados de la siguiente forma:</p>'+
+      '<ul>'+bullets+'</ul>'+
+      '<p>Salvo instrucción expresa y por escrito del Promitente Vendedor, todos los pagos derivados del presente contrato deberán efectuarse exclusivamente mediante transferencia electrónica o depósito bancario a la Cuenta de Ahorros Bancolombia No. 523-000043-32, cuyo titular es Sierraluna Group S.A.S., identificada con NIT 901814712.</p>'+
+      prepTxt+
+      '<p>Todos los pagos y/o abonos del Precio del Inmueble que se realicen tendrán la naturaleza de anticipos hasta que se realice la transferencia del Inmueble objeto del presente Contrato de Compraventa. Los pagos efectuados se imputarán en primer lugar a los intereses moratorios generados, seguidos a cualquier obligación vencida, luego a la cuota vigente y, finalmente, a las cuotas futuras.</p>'+
+      '<p>La falta de pago de cualquiera de los pagos descritos en la Forma de Pago del Precio en las fechas allí establecidas, incluido el pago de las respectivas cuotas, generará la causación de intereses de mora a la tasa máxima legal a partir de la fecha en que debía realizarse el respectivo pago, sin necesidad de requerimiento (judicial o extrajudicial) alguno, hasta el día de su pago efectivo.</p>')+
+    R('Tradición','<p>El Inmueble cuya venta se promete se desenglobará del Inmueble de Mayor Extensión, el cual fue adquirido por el Promitente Vendedor mediante compraventa en los términos contenidos en la escritura pública No. 3575 del 29 de diciembre de 2023, otorgada en la Notaría Segunda del Círculo de Valledupar, debidamente inscrita en el folio de matrícula correspondiente.</p>')+
+    R('Otorgamiento de la Escritura Pública de Compraventa',
+      '<p>La escritura pública de compraventa del Inmueble será otorgada una vez se hayan finalizado las obras de adecuación, el desenglobe del Inmueble, y el pago total del Precio del Inmueble. Dicho otorgamiento tendrá lugar en la Notaría Segunda del Círculo de Valledupar, en fecha y hora que serán fijadas de común acuerdo entre las Partes, una vez cumplidas las condiciones precedentes.</p>'+
+      '<p>Son condiciones precedentes para el otorgamiento de la escritura pública de compraventa del Inmueble (“<i>las Condiciones Precedentes</i>”) las siguientes:</p>'+
+      '<ol type="i"><li>Que la Promitente Compradora haya realizado el pago total del Precio del Inmueble, sin que exista saldo pendiente;</li>'+
+      '<li>Que se haya efectuado el desenglobe del Inmueble; y</li>'+
+      '<li>Que se hayan finalizado las obras de adecuación, acceso y operación necesarias para la entrega del Inmueble, conforme a los estándares y especificaciones determinadas por el Promitente Vendedor para el Proyecto Sierraluna.</li></ol>'+
+      '<p>Las Partes podrán, de manera previa y por escrito, prorrogar y/o anticipar la fecha de otorgamiento de la escritura pública de compraventa, siempre que se hayan cumplido las Condiciones Precedentes.</p>'+
+      '<p>En caso de que el desenglobe del Inmueble no pueda realizarse por razones ajenas al Promitente Vendedor, el plazo para el otorgamiento de la escritura pública de compraventa se prorrogará automáticamente hasta que dicho trámite sea finalizado.</p>')+
+    R('Gastos de Escrituración',
+      '<p>Las Partes se comprometen a pagar los gastos notariales de la siguiente manera:</p>'+
+      '<ol type="i"><li>Derecho escrituración: Promitente Vendedor y Promitente Comprador en partes iguales.</li>'+
+      '<li>Impuesto de registro: Promitente Comprador en un 100%.</li>'+
+      '<li>Registro Oficina de Registro de Instrumentos Públicos: Promitente Comprador en un 100%.</li>'+
+      '<li>Impuesto de timbre (en caso de que aplique): Promitente Vendedor y Promitente Comprador en partes iguales.</li>'+
+      '<li>Retención en la fuente (en caso de que aplique): Promitente Vendedor en un 100%.</li>'+
+      '<li>Cualquier otro gasto que se llegare a generar será asumido por partes iguales entre las Partes.</li></ol>'+
+      '<p>Cada Parte será responsable de pagar oportunamente su correspondiente porción directamente a la entidad o autoridad correspondiente, y deberá presentar los comprobantes de dichos pagos como prueba de cumplimiento antes de proceder con la firma de la escritura pública.</p>')+
+    R('Entrega del Inmueble','<p>La entrega física del Inmueble al Promitente Comprador por parte del Promitente Vendedor se realizará en un plazo no mayor a treinta (30) días calendario siguientes a la suscripción de la escritura pública de compraventa y su correspondiente inscripción en la Oficina de Registro de Instrumentos Públicos.</p>')+
+    R('Obligaciones del Promitente Vendedor',
+      '<p>El Promitente Vendedor se obliga a:</p><ol>'+
+      '<li>Cumplir las obligaciones a su cargo establecidas en el presente Contrato.</li>'+
+      '<li>Realizar las gestiones para el desenglobe del Inmueble de manera oportuna antes de la fecha establecida para la suscripción de la escritura que materialice su compraventa.</li>'+
+      '<li>Mantener el Inmueble libre de gravámenes, hipotecas, embargos, o cualquier otro gravamen que sea un impedimento legal para su transferencia.</li>'+
+      '<li>Entregar el Inmueble en el plazo establecido en el presente Contrato, a paz y salvo por concepto de impuestos, tributos, catastro, tasas, predial, contribuciones y valorizaciones, tanto distritales, departamentales y nacionales.</li>'+
+      '<li>Suscribir la escritura pública de compraventa del Inmueble en la fecha, hora y lugar previsto en el presente documento.</li>'+
+      '<li>Realizar las adecuaciones necesarias del proyecto Sierraluna.</li>'+
+      '<li>Entregar el Inmueble en las condiciones previstas en el presente documento.</li></ol>')+
+    R('Obligaciones del Promitente Comprador',
+      '<p>El Promitente Comprador se obliga a:</p><ol>'+
+      '<li>Cumplir las obligaciones a su cargo establecidas en el presente Contrato.</li>'+
+      '<li>Pagar oportunamente el Precio del Inmueble en las condiciones y tiempos previstos en el presente documento.</li>'+
+      '<li>Colaborar activa y oportunamente con el Promitente Vendedor para la ejecución de todas las actividades que requieran su concurso.</li>'+
+      '<li>Suscribir la escritura pública de compraventa en las fechas previstas en el presente documento.</li>'+
+      '<li>Realizar el registro de la escritura pública de compraventa del Inmueble en la oficina de Registro e Instrumentos Públicos.</li>'+
+      '<li>Abstenerse de realizar cualquier acción u omisión que tenga como objeto y/o efecto afectar negativamente el Proyecto Sierraluna y/o el cumplimiento oportuno de las obligaciones del Promitente Vendedor.</li>'+
+      '<li>Suscribir y cumplir con el Reglamento de Propiedad Horizontal del Proyecto.</li>'+
+      '<li>Suscribir y cumplir con el Manual de Construcción del Proyecto.</li>'+
+      '<li>Actuar de buena fe.</li></ol>')+
+    R('Declaración de Fondos','<p>El Promitente Comprador declara que los recursos entregados en pago para la compra del Inmueble provienen de las fuentes que en virtud de la ocupación, profesión u oficio que desarrollan lícitamente y por lo tanto dichos recursos no provienen de ninguna actividad ilícita de las contempladas en el Código Penal Colombiano o en cualquier norma que lo modifica, adiciona o complementan. Por consiguiente, el Promitente Vendedor queda eximido de toda responsabilidad que se derive por información errónea o inexacta que el Promitente Comprador le proporcione para la celebración y cumplimiento de este Contrato.</p>')+
+    R('Terminación del Contrato',
+      '<p>El presente Contrato terminará en los siguientes eventos y con las siguientes consecuencias:</p><ol>'+
+      '<li>Por cumplimiento de su objeto, cuando se perfeccione la compraventa prometida a través del otorgamiento de la escritura pública de compraventa del Inmueble y su correspondiente registro, siempre que no quedaren obligaciones pendientes de ser cumplidas;</li>'+
+      '<li>Por mutuo acuerdo escrito entre las Partes;</li>'+
+      '<li>Por parte del Promitente Vendedor, de manera inmediata y sin intervención judicial, con el envío de una notificación escrita al Promitente Comprador, en el evento de incumplimiento del Promitente Comprador en cualquiera de los pagos del Precio del Inmueble, incluidas las cuotas, por un periodo superior a noventa (90) días calendario. En tal caso, el Promitente Vendedor deberá reembolsar al Promitente Comprador una suma equivalente al cien por ciento (100%) de los valores efectivamente pagados por éste hasta la fecha de envío de la notificación escrita, menos una deducción i) equivalente al treinta por ciento (30%) de los valores efectivamente pagados por el Promitente Comprador a título de cálculo anticipado y acordado de perjuicios, ii) de los intereses moratorios por la falta de pago del Precio que se hubieren causado, y iii) de cualquier otro concepto que se hubiere causado a favor del Promitente Vendedor hasta la fecha de terminación efectiva. Perfeccionada la terminación en los términos del presente numeral, el Promitente Vendedor quedará en plena libertad de disponer del Inmueble y ofrecerlo en venta nuevamente, sin que ello requiera autorización o notificación adicional al Promitente Comprador.</li>'+
+      '<li>Por imposibilidad para ejecutar el Proyecto por causas no imputables al Promitente Vendedor. En este caso, el Promitente Vendedor deberá reembolsar al Promitente Comprador una suma equivalente al cien por ciento (100%) de los valores efectivamente pagados por éste, menos los valores realmente invertidos en el Proyecto por parte del Promitente Vendedor, debidamente sustentados.</li>'+
+      '<li>Por fuerza mayor que impida el cumplimiento de las obligaciones consignadas en el presente Contrato por un periodo superior a 365 días calendario y que no pueda ser mitigada o superada por el Promitente Vendedor a través de medidas razonables.</li></ol>')+
+    R('Terminación Unilateral por parte del Promitente Comprador',
+      '<p>El Promitente Comprador podrá dar por terminado el presente contrato de manera unilateral antes de la fecha de escrituración, siempre que se encuentre al día con los pagos del Precio del Inmueble. Para ello, deberá notificar su decisión al Promitente Vendedor con un plazo mínimo de sesenta (60) días calendario de anticipación. En este caso, el Promitente Vendedor reembolsará al Promitente Comprador el cien por ciento (100%) de los valores efectivamente pagados hasta la fecha de notificación, descontando una suma equivalente al treinta por ciento (30%) de los valores efectivamente pagados como compensación acordada por la terminación anticipada del contrato, así como los intereses moratorios por la falta de pago del Precio que se hubieren causado y cualquier otro valor que se haya generado a favor del Promitente Vendedor hasta la fecha efectiva de terminación.</p>'+
+      '<p>El reembolso será efectuado dentro de los treinta (30) días calendario siguientes a la fecha de notificación de terminación, siempre y cuando el Promitente Comprador se encuentre a paz y salvo con sus obligaciones derivadas del presente Contrato.</p>')+
+    R('Terminación Unilateral por no desarrollo del Proyecto',
+      '<p>El presente contrato podrá ser terminado de manera unilateral por parte del Promitente Vendedor antes de la fecha de escrituración, en caso de que el Promitente Vendedor decida no desarrollar el Proyecto. Para ello, deberá notificar al Promitente Comprador su decisión con un plazo no mayor a seis (6) meses antes de la fecha efectiva de terminación indicada en la comunicación respectiva (“Notificación de Terminación”).</p>'+
+      '<p>En tal caso, el Promitente Vendedor deberá reembolsar al Promitente Comprador el cien por ciento (100%) de los valores efectivamente pagados hasta la fecha de la Notificación de Terminación, más una penalidad equivalente al treinta por ciento (30%) de dichos valores, como compensación por la terminación anticipada del contrato y los perjuicios que esto pueda generar para el Comprador.</p>'+
+      '<p>Dicho reembolso deberá ser efectuado dentro de los treinta (30) días calendario siguientes a la fecha efectiva de terminación indicada en la Notificación de Terminación.</p>')+
+    R('Cesión','<p>El Promitente Comprador podrá ceder su posición en el presente Contrato o sus derechos sobre esta promesa de compraventa, con previa autorización escrita del Promitente Vendedor.</p>')+
+    R('Cláusula de Confidencialidad',
+      '<p>Las Partes se obligan recíprocamente a mantener en estricta confidencialidad todos los términos relacionados con el Precio del Inmueble, compra y/o cualquier otro tema de negocio, estructuración o detalle financiero asociado a este Contrato de Promesa de Compraventa.</p>'+
+      '<p>En virtud de lo anterior, se obligan a no divulgar, revelar ni transmitir esta información a ninguna persona física o jurídica que no esté directamente involucrada en la transacción, excepto por requerimiento legal expreso o autorización escrita previa de la otra Parte. Cada Parte tomará todas las medidas necesarias para proteger la confidencialidad de la información y evitar su divulgación no autorizada, incluyendo la implementación de controles físicos, administrativos y técnicos adecuados. El incumplimiento de esta obligación dará lugar a las acciones legales correspondientes, incluyendo la reclamación de daños y perjuicios que puedan derivarse de la divulgación no autorizada de la información protegida.</p>'+
+      '<p>Esta obligación de confidencialidad permanecerá en vigor durante la vigencia de este Contrato y se extenderá por un periodo de cinco años después de su terminación o conclusión, independientemente del motivo de dicha terminación.</p>')+
+    R('Ley aplicable y domicilio contractual','<p>El presente Contrato está regulado por las leyes de la República de Colombia. Para todos los efectos legales, el domicilio será la ciudad de Valledupar, Cesar.</p>')+
+    R('Título Ejecutivo',
+      '<p>Las Partes expresamente le reconocen a este documento mérito ejecutivo para la exigibilidad del cumplimiento de las obligaciones contraídas y de las indemnizaciones pactadas.</p>'+
+      '<p>Las Partes renuncian a los requerimientos judiciales y extrajudiciales para constitución en mora, dado que este documento constituirá título ejecutivo contra la parte que incumpla, sin que sea necesaria la notificación a la parte contraria.</p>')+
+    R('Notificaciones',
+      '<p>El Promitente Vendedor:<br>Sierraluna Group S.A.S.<br>Mauricio Gutiérrez Dangond<br>Dirección: Calle 11 # 11-07 oficina 201<br>Teléfono: 3126595294<br>E-mail: mauricio@sierraluna.co</p>'+
+      '<p>'+notifComp+'</p>')+
+    '</table>'+
+    '<div class="firma">'+firmaTxt+'</div>'+
+    '<div class="sig-h"><div>El Promitente Vendedor</div><div>'+((d.dos&&d.nom2)?"Los Promitentes Compradores":"El Promitente Comprador")+'</div></div>'+
+    '<div class="sigs">'+
+      '<div class="sig"><div class="sig-line"></div><div class="sig-n">Mauricio Gutiérrez Dangond</div><div class="sig-d">Sierraluna Group S.A.S. · NIT: 901814712-8</div></div>'+
+      firmasComp+
+    '</div>'+
+    '</body></html>';
+  }
+  function printContract(d){
+    var win=window.open("","_blank","width=940,height=1150");
+    if(!win){ alert("Permite las ventanas emergentes para generar el contrato."); return; }
+    win.document.write(buildContractHTML(d));
+    win.document.close();
+    win.onload=function(){ setTimeout(function(){ try{ win.focus(); win.print(); }catch(_){}}, 500); };
+  }
+
+  window.renderContratos=renderContratos;
+  window.renderContractPreview=renderContractPreview;
+  window.prefillContract=prefillContract;
+  window.addPagoRow=addPagoRow;
+  window.delPagoRow=delPagoRow;
+  window.toggleDos=toggleDos;
+  window.saveContract=saveContract;
+  window.delContract=delContract;
+  window.printContract=printContract;
+  window.printContractById=printContractById;
+  window.previewContract=previewContract;
 })();
 </script>
