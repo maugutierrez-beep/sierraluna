@@ -324,8 +324,16 @@
   .ind .is{font-size:10.8px;color:var(--ink-soft);margin-top:5px;font-weight:500}
 
   /* Tab navigation */
-  .tabnav{display:flex;gap:4px;background:var(--card);border:1px solid var(--line-soft);
-    border-radius:14px;padding:5px;box-shadow:var(--shadow);margin-top:16px;overflow-x:auto;flex-shrink:0}
+  .tabnav{display:flex;gap:0;background:var(--card);border:1px solid var(--line-soft);
+    border-radius:14px;padding:8px 6px 7px;box-shadow:var(--shadow);margin-top:16px;overflow-x:auto;flex-shrink:0}
+.tgrp{display:flex;flex-direction:column;gap:4px;padding:0 9px;border-right:1px solid var(--line-soft);flex:0 0 auto}
+.tgrp.last,.tgrp:last-child{border-right:none}
+.tgrp:first-child{padding-left:4px}
+.tgl{font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#9aa6b7;padding-left:11px;user-select:none}
+.tgb{display:flex;gap:4px}
+.tabnav .tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 12px}
+.tab svg{width:13px;height:13px;flex:0 0 auto;opacity:.8}
+.tab.active svg{opacity:1}
   .tab{flex:1;padding:10px 6px;border-radius:10px;border:none;background:transparent;
     color:var(--ink-soft);font-family:'Montserrat';font-weight:600;font-size:12px;
     cursor:pointer;white-space:nowrap;transition:.15s;text-align:center;min-width:80px}
@@ -629,17 +637,37 @@
 
 
   <div class="tabnav" id="tabnav">
-    <button class="tab active" data-tab="resumen" onclick="showTab('resumen')">Resumen</button>
-    <button class="tab" data-tab="compradores" onclick="showTab('compradores')">Compradores<span class="tcount" id="tc-compradores"></span></button>
-    <button class="tab" data-tab="cobranza" onclick="showTab('cobranza')">Cobranza <span class="tcount" id="tc-mora" style="display:none;background:#e05a3a"></span></button>
-    <button class="tab" data-tab="inventario" onclick="showTab('inventario')">Inventario</button>
-    <button class="tab" data-tab="movimientos" onclick="showTab('movimientos')">Movimientos<span class="tcount" id="tc-movimientos" style="background:#4a7eb5"></span></button>
-    <button class="tab" data-tab="finanzas" onclick="showTab('finanzas')">Finanzas</button>
-    <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()">Sistema</button>
-    <button class="tab" data-tab="flujo" onclick="showTab('flujo');renderFlujo();renderMora()">Flujo</button>
-    <button class="tab" data-tab="prospectos" onclick="showTab('prospectos');renderProspectos()">Prospectos</button>
-    <button class="tab" data-tab="cotizaciones" onclick="showTab('cotizaciones');renderCotizaciones()">Cotizaciones</button>
-    <button class="tab" data-tab="contratos" onclick="showTab('contratos');renderContratos()">Contratos</button>
+    <div class="tgrp">
+      <div class="tgl">Recaudo</div>
+      <div class="tgb">
+        <button class="tab active" data-tab="resumen" onclick="showTab('resumen')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Resumen</button>
+        <button class="tab" data-tab="compradores" onclick="showTab('compradores')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.6 5.5-4.6s4.9 1.6 5.5 4.6"/><circle cx="16.8" cy="9" r="2.4"/><path d="M15.5 14.6c2.3.2 4 1.6 4.6 4"/></svg>Compradores<span class="tcount" id="tc-compradores"></span></button>
+        <button class="tab" data-tab="cobranza" onclick="showTab('cobranza')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/></svg>Cobranza <span class="tcount" id="tc-mora" style="display:none;background:#e05a3a"></span></button>
+        <button class="tab" data-tab="movimientos" onclick="showTab('movimientos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v12"/><path d="M4 7l3-3 3 3"/><path d="M17 20V8"/><path d="M14 17l3 3 3-3"/></svg>Movimientos<span class="tcount" id="tc-movimientos" style="background:#4a7eb5"></span></button>
+      </div>
+    </div>
+    <div class="tgrp">
+      <div class="tgl">Finanzas</div>
+      <div class="tgb">
+        <button class="tab" data-tab="finanzas" onclick="showTab('finanzas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10"/><path d="M11 20V4"/><path d="M17 20v-7"/><path d="M21 20H3"/></svg>Finanzas</button>
+        <button class="tab" data-tab="flujo" onclick="showTab('flujo');renderFlujo();renderMora()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8"/><path d="M14 7h6v6"/></svg>Flujo</button>
+      </div>
+    </div>
+    <div class="tgrp">
+      <div class="tgl">Comercial</div>
+      <div class="tgb">
+        <button class="tab" data-tab="inventario" onclick="showTab('inventario')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L4 6v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>Inventario</button>
+        <button class="tab" data-tab="prospectos" onclick="showTab('prospectos');renderProspectos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8L3 4z"/></svg>Prospectos</button>
+        <button class="tab" data-tab="cotizaciones" onclick="showTab('cotizaciones');renderCotizaciones()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6z"/><path d="M14 3v6h6"/><path d="M8 14h8"/><path d="M8 17h5"/></svg>Cotizaciones</button>
+        <button class="tab" data-tab="contratos" onclick="showTab('contratos');renderContratos()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5z"/></svg>Contratos</button>
+      </div>
+    </div>
+    <div class="tgrp last">
+      <div class="tgl">Admin</div>
+      <div class="tgb">
+        <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>Sistema</button>
+      </div>
+    </div>
   </div>
 
   <!-- Charts -->
