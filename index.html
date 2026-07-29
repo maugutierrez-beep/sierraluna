@@ -694,6 +694,12 @@
       <div class="chartcard"><h3>Antigüedad de la cartera vencida</h3><div class="h3sub">Mora clasificada por días de vencimiento (aging)</div><div class="cwrap tall"><canvas id="ch_aging"></canvas></div></div>
       <div class="chartcard"><h3>Proyección de recaudo</h3><div class="h3sub">Lo que debería ingresar en los próximos meses, según los planes</div><div class="cwrap tall"><canvas id="ch_proyeccion"></canvas></div></div>
     </div>
+    <div class="chartcard" style="margin-top:16px">
+      <h3>Velocidad de recaudo</h3>
+      <div class="h3sub">Acumulado real vs. total contratado, y a qué fecha llegas a la meta si mantienes el ritmo de los últimos 3 meses</div>
+      <div id="velo_kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px"></div>
+      <div class="cwrap tall"><canvas id="ch_velocidad"></canvas></div>
+    </div>
   </div>
 
   <!-- Comparativo Etapa 1 vs Etapa 2 -->
@@ -5763,5 +5769,98 @@ function logout(){
   window.printStatement=printStatement;
   window.fillStatementSelect=fillStatementSelect;
   window.renderRemLog=renderRemLog;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v6: Velocidad de recaudo (acumulado vs meta + proyección)
+   ============================================================ */
+(function(){
+  "use strict";
+  var VCH=null;
+  function mS(n){ n=+n||0;
+    if(n>=1e9) return "$"+(n/1e9).toFixed(n>=1e10?0:1).replace(".",",")+" mil M";
+    if(n>=1e6) return "$"+Math.round(n/1e6)+" M";
+    if(n>=1e3) return "$"+Math.round(n/1e3)+" K";
+    return "$"+Math.round(n); }
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  var MESL=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  function lab(ym){ var p=ym.split("-"); return MESL[+p[1]-1]+"-"+p[0].slice(2); }
+  function addM(ym,k){ var p=ym.split("-"),y=+p[0],m=+p[1]-1+k; return (y+Math.floor(m/12))+"-"+String(m%12+1).padStart(2,"0"); }
+
+  function renderVelocidad(){
+    try{
+      if(typeof DB==="undefined"||!DB||!Array.isArray(DB.buyers)) return;
+      var cv=document.getElementById("ch_velocidad"); if(!cv||typeof Chart==="undefined") return;
+      var bs=DB.buyers.filter(function(b){return b.code!=="PD";});
+      var total=bs.reduce(function(a,b){return a+(+b.total||0);},0);
+      var byMo={}, first=null;
+      bs.forEach(function(b){(b.payments||[]).forEach(function(p){
+        if(!p.date||!(+p.amount>0)) return;
+        var ym=p.date.slice(0,7);
+        byMo[ym]=(byMo[ym]||0)+(+p.amount);
+        if(!first||ym<first) first=ym;
+      });});
+      var now=new Date(), cur=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+      if(!first) first=cur;
+      var months=[], m=first, guard=0;
+      while(m<=cur && guard++<600){ months.push(m); m=addM(m,1); }
+      if(months.length>48) months=months.slice(-48);
+      var cum=[], acc=0;
+      Object.keys(byMo).forEach(function(k){ if(k<months[0]) acc+=byMo[k]; });
+      months.forEach(function(k){ acc+=byMo[k]||0; cum.push(acc); });
+      var rec=acc, falta=Math.max(0,total-rec);
+      function vel(n){ var L=cum.length;
+        if(L<2) return 0;
+        var k=Math.min(n,L-1);
+        return (cum[L-1]-cum[L-1-k])/k; }
+      var v3=vel(3), v6=vel(6);
+      var futL=[], futD=[], eta=null;
+      if(v3>0&&falta>0){
+        var p=rec, mm=cur, i=0;
+        while(p<total&&i<60){ i++; mm=addM(mm,1); p=Math.min(total,p+v3); futL.push(mm); futD.push(p); if(p>=total){eta=mm;} }
+      }
+      var labels=months.map(lab).concat(futL.map(lab));
+      var dReal=cum.concat(futL.map(function(){return null;}));
+      var dProj=months.map(function(_,i){return i===months.length-1?cum[cum.length-1]:null;}).concat(futD);
+      var dMeta=labels.map(function(){return total;});
+      var pct=total>0?rec/total*100:0;
+      var etaTxt=eta?("~"+lab(eta).replace("-"," 20")):(falta<=0?"Meta cumplida":(v3>0?"> 5 años":"—"));
+      var box=function(l,v,sub,c){ return '<div style="flex:1;min-width:150px;border:1px solid var(--line-soft);border-radius:11px;padding:9px 13px;background:#fff">'+
+        '<div style="font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700">'+l+'</div>'+
+        '<div style="font-size:16px;font-weight:800;color:'+(c||"var(--navy)")+';margin-top:2px">'+v+'</div>'+
+        (sub?'<div style="font-size:9.5px;color:var(--ink-soft);margin-top:1px">'+sub+'</div>':"")+'</div>'; };
+      var kp=document.getElementById("velo_kpis");
+      if(kp) kp.innerHTML=
+        box("Ritmo últimos 3 meses", mS(v3)+"/mes", m$(v3))+
+        box("Ritmo últimos 6 meses", mS(v6)+"/mes", m$(v6))+
+        box("Falta por recaudar", mS(falta), "avance "+pct.toFixed(1)+"% de "+mS(total), falta>0?"#c0392b":"#1d6b3f")+
+        box("Meta a ritmo actual", etaTxt, v3>0&&eta?("~"+Math.max(1,futL.length)+" meses"):"", "#c98a2f");
+      if(VCH){ try{VCH.destroy();}catch(_){} VCH=null; }
+      VCH=new Chart(cv,{type:"line",
+        data:{labels:labels,datasets:[
+          {label:"Recaudado acumulado",data:dReal,borderColor:"#1A3352",backgroundColor:"rgba(26,51,82,.09)",fill:true,tension:.25,pointRadius:0,borderWidth:2.2,spanGaps:false},
+          {label:"Proyección a ritmo 3m",data:dProj,borderColor:"#c98a2f",borderDash:[6,4],fill:false,tension:.15,pointRadius:0,borderWidth:2,spanGaps:false},
+          {label:"Total contratado",data:dMeta,borderColor:"#98a3b3",borderDash:[2,3],fill:false,pointRadius:0,borderWidth:1.4}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+          plugins:{legend:{labels:{font:{size:10},boxWidth:18}},
+            tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+m$(c.raw);}}}},
+          scales:{y:{ticks:{callback:function(v){return mS(v);},font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
+            x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:16}}}}});
+    }catch(e){ console.warn("velocidad:",e); }
+  }
+
+  var _dc=window.drawCharts;
+  if(typeof _dc==="function"){
+    window.drawCharts=function(){ var r=_dc.apply(this,arguments); try{ renderVelocidad(); }catch(_){} return r; };
+  }
+  var _t=0,_iv=setInterval(function(){ _t++;
+    if(typeof DB!=="undefined"&&DB&&DB.buyers&&DB.buyers.length&&document.getElementById("ch_velocidad")&&typeof Chart!=="undefined"){
+      clearInterval(_iv); if(!VCH) renderVelocidad();
+    } else if(_t>30) clearInterval(_iv);
+  },1200);
+  window.renderVelocidad=renderVelocidad;
 })();
 </script>
