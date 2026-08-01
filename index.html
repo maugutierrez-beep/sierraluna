@@ -700,6 +700,14 @@
       <div id="velo_kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px"></div>
       <div class="cwrap tall"><canvas id="ch_velocidad"></canvas></div>
     </div>
+    <div class="charts2" style="margin-top:16px">
+      <div class="chartcard"><h3>Cumplimiento de recaudo</h3><div class="h3sub">Lo que debió entrar según los planes vs. lo que realmente entró, mes a mes</div><div class="cwrap tall"><canvas id="ch_cumplimiento"></canvas></div></div>
+      <div class="chartcard"><h3>Concentración de cartera</h3><div class="h3sub">Top 10 compradores por saldo pendiente y % acumulado del total</div><div class="cwrap tall"><canvas id="ch_concentracion"></canvas></div></div>
+    </div>
+    <div class="charts2" style="margin-top:16px">
+      <div class="chartcard"><h3>Evolución del precio por m²</h3><div class="h3sub">Precio promedio ponderado de venta por trimestre (valorización del proyecto)</div><div class="cwrap tall"><canvas id="ch_pm2"></canvas></div></div>
+      <div class="chartcard"><h3>Inventario y absorción</h3><div class="h3sub">Cuántos lotes quedan y para cuántos meses alcanzan al ritmo de ventas actual</div><div id="runway_body" style="padding:6px 2px"></div></div>
+    </div>
   </div>
 
   <!-- Comparativo Etapa 1 vs Etapa 2 -->
@@ -773,6 +781,14 @@
       <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:20px 0 10px">Recordatorios enviados</h4>
       <div id="rem_log"></div>
     </div>
+  </div>
+
+  <!-- Comportamiento de pago -->
+  <div class="panel" data-section="cobranza">
+    <div class="panel-h">
+      <div><h2>Comportamiento de pago</h2><div class="desc">Score por comprador: puntualidad histórica, atraso promedio y tendencia. Base objetiva para decidir gestión de cobranza.</div></div>
+    </div>
+    <div style="padding:14px 18px 18px" id="score_body"></div>
   </div>
 
   <div class="panel" data-section="cobranza">
@@ -936,6 +952,13 @@
   </div>
 
   <!-- ===== Prospectos / pipeline (#9) ===== -->
+  <div class="panel" data-section="prospectos">
+    <div class="panel-h">
+      <div><h2>Embudo comercial</h2><div class="desc">Prospectos → cotizaciones → contratos → compradores, con tasas de conversión entre etapas.</div></div>
+    </div>
+    <div style="padding:14px 18px 18px"><div class="cwrap" style="height:210px"><canvas id="ch_embudo"></canvas></div><div id="embudo_note" class="sys-note" style="margin-top:10px"></div></div>
+  </div>
+
   <div class="panel sec-hidden" data-section="prospectos">
     <div class="panel-h">
       <div><h2>Pipeline comercial</h2><div class="desc">Embudo de prospectos, reservas y promesas en gestión para los lotes restantes. Separado de las promesas firmadas.</div></div>
@@ -5862,5 +5885,248 @@ function logout(){
     } else if(_t>30) clearInterval(_iv);
   },1200);
   window.renderVelocidad=renderVelocidad;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v7: Analítica ejecutiva
+   Cumplimiento · Concentración · Score de pago · Runway · Precio m² · Embudo
+   ============================================================ */
+(function(){
+  "use strict";
+  var VC={};
+  function kill(k){ if(VC[k]){ try{VC[k].destroy();}catch(_){} VC[k]=null; } }
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function mS(n){ n=+n||0;
+    if(n>=1e9) return "$"+(n/1e9).toFixed(1).replace(".",",")+" mil M";
+    if(n>=1e6) return "$"+Math.round(n/1e6)+" M";
+    if(n>=1e3) return "$"+Math.round(n/1e3)+" K";
+    return "$"+Math.round(n); }
+  var MESL=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  function lab(ym){ var p=ym.split("-"); return MESL[+p[1]-1]+"-"+p[0].slice(2); }
+  function addM(ym,k){ var p=ym.split("-"),y=+p[0],m=+p[1]-1+k; return (y+Math.floor(m/12))+"-"+String(m%12+1).padStart(2,"0"); }
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function activos(){ return (DB.buyers||[]).filter(function(b){return b.code!=="PD"&&(+b.total>0);}); }
+  function fventa(b){ // fecha de venta a "YYYY-MM" (acepta ISO o "oct-25")
+    var f=(b.fecha||"").trim().toLowerCase();
+    var m=f.match(/^(\d{4})-(\d{2})/); if(m) return m[1]+"-"+m[2];
+    m=f.match(/^([a-z]{3})[-\s]?(\d{2,4})$/);
+    if(m){ var i=MESL.indexOf(m[1]); if(i>=0){ var y=m[2].length===2?"20"+m[2]:m[2]; return y+"-"+String(i+1).padStart(2,"0"); } }
+    return null; }
+
+  /* ---------- cobertura de cuotas con fecha (para score) ---------- */
+  function coberturas(b){
+    var hoy=hoyISO();
+    var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+    var pays=(b.payments||[]).filter(function(p){return p.date&&+p.amount>0;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+    var req=0, out=[];
+    plan.forEach(function(c){
+      if(c.date>hoy) return;
+      req+=(+c.amount||0);
+      var acc=0, cover=null;
+      for(var i=0;i<pays.length;i++){ acc+=(+pays[i].amount); if(acc>=req-1){ cover=pays[i].date; break; } }
+      var late = cover ? Math.max(0,(new Date(cover+"T12:00")-new Date(c.date+"T12:00"))/864e5)
+                       : (new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5;
+      out.push({due:c.date, amount:+c.amount||0, cover:cover, late:Math.round(late), open:!cover});
+    });
+    return out;
+  }
+
+  /* ---------- 1) Cumplimiento esperado vs real ---------- */
+  function renderCumplimiento(){
+    var cv=document.getElementById("ch_cumplimiento"); if(!cv||typeof Chart==="undefined") return;
+    var esp={}, rea={};
+    activos().forEach(function(b){
+      (b.plan||[]).forEach(function(c){ if(c.date) esp[c.date.slice(0,7)]=(esp[c.date.slice(0,7)]||0)+(+c.amount||0); });
+      (b.payments||[]).forEach(function(p){ if(p.date&&+p.amount>0) rea[p.date.slice(0,7)]=(rea[p.date.slice(0,7)]||0)+(+p.amount); });
+    });
+    var now=new Date(), cur=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+    var months=[]; for(var i=17;i>=0;i--) months.push(addM(cur,-i));
+    var dE=months.map(function(m){return esp[m]||0;});
+    var dR=months.map(function(m){return rea[m]||0;});
+    var dP=months.map(function(m,i){return dE[i]>0?Math.min(200,dR[i]/dE[i]*100):null;});
+    kill("cum");
+    VC.cum=new Chart(cv,{data:{labels:months.map(lab),datasets:[
+      {type:"bar",label:"Esperado (planes)",data:dE,backgroundColor:"rgba(152,163,179,.45)",borderRadius:3,order:2},
+      {type:"bar",label:"Recaudado real",data:dR,backgroundColor:"#1A3352",borderRadius:3,order:2},
+      {type:"line",label:"% cumplimiento",data:dP,yAxisID:"y2",borderColor:"#c98a2f",borderWidth:2,pointRadius:2.5,pointBackgroundColor:"#c98a2f",tension:.25,order:1,spanGaps:true}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{font:{size:10},boxWidth:16}},
+        tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+(c.dataset.yAxisID==="y2"?(c.raw==null?"—":Math.round(c.raw)+"%"):m$(c.raw));}}}},
+      scales:{y:{ticks:{callback:function(v){return mS(v);},font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
+        y2:{position:"right",min:0,max:200,ticks:{callback:function(v){return v+"%";},font:{size:9}},grid:{display:false}},
+        x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:18}}}}});
+  }
+
+  /* ---------- 2) Concentración de cartera ---------- */
+  function renderConcentracion(){
+    var cv=document.getElementById("ch_concentracion"); if(!cv||typeof Chart==="undefined") return;
+    var rows=activos().map(function(b){return {n:(b.code||"")+" "+((b.name||"").split(" ").slice(0,2).join(" ")), s:Math.max(0,saldo(b))};})
+      .filter(function(r){return r.s>0;}).sort(function(a,b){return b.s-a.s;});
+    var totS=rows.reduce(function(a,r){return a+r.s;},0);
+    var top=rows.slice(0,10), acc=0;
+    var cumPct=top.map(function(r){acc+=r.s; return totS>0?acc/totS*100:0;});
+    kill("con");
+    VC.con=new Chart(cv,{data:{labels:top.map(function(r){return r.n;}),datasets:[
+      {type:"bar",label:"Saldo pendiente",data:top.map(function(r){return r.s;}),backgroundColor:"#1A3352",borderRadius:3,order:2},
+      {type:"line",label:"% acumulado del saldo total",data:cumPct,yAxisID:"y2",borderColor:"#c98a2f",borderWidth:2,pointRadius:2.5,pointBackgroundColor:"#c98a2f",tension:.2,order:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{font:{size:10},boxWidth:16}},
+        tooltip:{callbacks:{label:function(c){return c.dataset.label+": "+(c.dataset.yAxisID==="y2"?c.raw.toFixed(1)+"%":m$(c.raw));}}}},
+      scales:{y:{ticks:{callback:function(v){return mS(v);},font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
+        y2:{position:"right",min:0,max:100,ticks:{callback:function(v){return v+"%";},font:{size:9}},grid:{display:false}},
+        x:{grid:{display:false},ticks:{font:{size:8.5},maxRotation:60,minRotation:40}}}}});
+  }
+
+  /* ---------- 3) Score de comportamiento ---------- */
+  function renderScore(){
+    var el=document.getElementById("score_body"); if(!el) return;
+    var hoy=hoyISO(), rows=[];
+    activos().forEach(function(b){
+      var cs=coberturas(b); if(!cs.length) return;
+      var n=cs.length;
+      var onTime=cs.filter(function(c){return !c.open&&c.late<=5;}).length;
+      var covered=cs.filter(function(c){return !c.open;});
+      var avgLate=covered.length?covered.reduce(function(a,c){return a+c.late;},0)/covered.length:null;
+      var open=cs.filter(function(c){return c.open;});
+      var openAmt=open.reduce(function(a,c){return a+c.amount;},0);
+      var oldestOpen=open.length?Math.max.apply(null,open.map(function(c){return c.late;})):0;
+      var trend="—";
+      if(n>=6){
+        var last3=cs.slice(-3).reduce(function(a,c){return a+c.late;},0)/3;
+        var prev3=cs.slice(-6,-3).reduce(function(a,c){return a+c.late;},0)/3;
+        trend=last3<prev3-3?"mejorando":(last3>prev3+3?"empeorando":"estable");
+      }
+      var pctOT=onTime/n*100;
+      var sem, semTxt;
+      if(n<3){ sem="gris"; semTxt="Historial corto"; }
+      else if(oldestOpen>30||pctOT<50){ sem="rojo"; semTxt="Atención"; }
+      else if(open.length||pctOT<80){ sem="amarillo"; semTxt="Vigilar"; }
+      else { sem="verde"; semTxt="Al día"; }
+      rows.push({b:b,n:n,pctOT:pctOT,avgLate:avgLate,openAmt:openAmt,oldestOpen:oldestOpen,trend:trend,sem:sem,semTxt:semTxt});
+    });
+    var ord={rojo:0,amarillo:1,gris:2,verde:3};
+    rows.sort(function(a,b){ return ord[a.sem]-ord[b.sem] || b.openAmt-a.openAmt; });
+    var col={rojo:["#c0392b","#fdeeeb"],amarillo:["#b7791f","#fdf6e7"],verde:["#1d6b3f","#eaf6ee"],gris:["#5b6573","#f1f3f7"]};
+    var tr=rows.map(function(r){
+      var c=col[r.sem];
+      var tArrow=r.trend==="mejorando"?'<span style="color:#1d6b3f">▲ mejorando</span>':r.trend==="empeorando"?'<span style="color:#c0392b">▼ empeorando</span>':r.trend;
+      return '<tr><td><span style="display:inline-block;font-size:9px;font-weight:800;letter-spacing:.05em;padding:3px 10px;border-radius:99px;color:'+c[0]+';background:'+c[1]+'">'+r.semTxt.toUpperCase()+'</span></td>'+
+        '<td><b>'+(r.b.code||"")+'</b> '+r.b.name+'</td>'+
+        '<td style="text-align:right">'+r.n+'</td>'+
+        '<td style="text-align:right">'+Math.round(r.pctOT)+'%</td>'+
+        '<td style="text-align:right">'+(r.avgLate==null?"—":Math.round(r.avgLate)+" días")+'</td>'+
+        '<td style="text-align:right;color:'+(r.openAmt>0?"#c0392b":"inherit")+'">'+(r.openAmt>0?m$(r.openAmt):"—")+'</td>'+
+        '<td style="text-align:right">'+(r.oldestOpen>0?Math.round(r.oldestOpen)+" días":"—")+'</td>'+
+        '<td>'+tArrow+'</td></tr>';
+    }).join("");
+    el.innerHTML='<table class="au-list"><thead><tr><th>Score</th><th>Comprador</th><th style="text-align:right">Cuotas eval.</th><th style="text-align:right">% a tiempo</th><th style="text-align:right">Atraso prom.</th><th style="text-align:right">Vencido abierto</th><th style="text-align:right">Mora más vieja</th><th>Tendencia</th></tr></thead><tbody>'+tr+'</tbody></table>'+
+    '<div class="sys-note" style="margin-top:10px"><b>Cómo leerlo:</b> «a tiempo» = cuota cubierta dentro de los 5 días siguientes al vencimiento (imputación de pagos en orden). Verde: ≥80% a tiempo y nada abierto · Amarillo: algo pendiente o puntualidad media · Rojo: mora abierta &gt;30 días o puntualidad &lt;50% · Historial corto: menos de 3 cuotas vencidas aún, score no confiable.</div>';
+  }
+
+  /* ---------- 4) Runway de inventario ---------- */
+  function renderRunway(){
+    var el=document.getElementById("runway_body"); if(!el) return;
+    var hoy=new Date(); var limYM=addM(hoy.getFullYear()+"-"+String(hoy.getMonth()+1).padStart(2,"0"),-5);
+    function calc(stage){
+      var disp = stage===1 ? (DB.availLots||[]).length : (DB.availLots2||[]).length;
+      var ventas6 = activos().filter(function(b){var ym=fventa(b); return (b.stage||1)===stage && ym && ym>=limYM;}).length;
+      var ritmo = ventas6/6;
+      var runway = ritmo>0 ? disp/ritmo : null;
+      return {disp:disp, v6:ventas6, ritmo:ritmo, run:runway};
+    }
+    var e1=calc(1), e2=calc(2);
+    function card(t,e){
+      var runTxt = e.disp===0 ? '<span style="color:#5b6573">—</span>'
+        : e.run==null ? "sin ventas 6m"
+        : (e.run>=36 ? "&gt; 3 años" : Math.round(e.run)+" meses");
+      var dispTxt = e.disp===0 ? "disponibles registrados" : "lotes disponibles";
+      return '<div style="flex:1;min-width:200px;border:1px solid var(--line-soft);border-radius:12px;padding:12px 15px;background:#fff">'+
+        '<div style="font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:800">'+t+'</div>'+
+        '<div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap">'+
+        '<div><div style="font-size:20px;font-weight:800;color:var(--navy)">'+e.disp+'</div><div style="font-size:9.5px;color:var(--ink-soft)">'+dispTxt+'</div></div>'+
+        '<div><div style="font-size:20px;font-weight:800;color:var(--navy)">'+e.v6+'</div><div style="font-size:9.5px;color:var(--ink-soft)">ventas últ. 6 meses</div></div>'+
+        '<div><div style="font-size:20px;font-weight:800;color:#c98a2f">'+runTxt+'</div><div style="font-size:9.5px;color:var(--ink-soft)">de inventario al ritmo actual</div></div>'+
+        '</div></div>';
+    }
+    el.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap">'+card("Etapa 1",e1)+card("Etapa 2",e2)+'</div>'+
+      '<div class="sys-note" style="margin-top:10px">Runway = lotes disponibles ÷ ritmo de ventas de los últimos 6 meses. Te dice si la prioridad de los próximos meses es <b>vender</b> (runway largo) o <b>cobrar y entregar</b> (runway corto).</div>';
+  }
+
+  /* ---------- 5) Evolución precio por m² ---------- */
+  function renderPm2(){
+    var cv=document.getElementById("ch_pm2"); if(!cv||typeof Chart==="undefined") return;
+    var q={};
+    activos().forEach(function(b){
+      var ym=fventa(b);
+      if(!ym||!(+b.tam>0)||!(+b.total>0)) return;
+      var d=ym.split("-"); var key=d[0]+"-T"+(Math.floor((+d[1]-1)/3)+1);
+      if(!q[key]) q[key]={t:0,m2:0,n:0};
+      q[key].t+=+b.total; q[key].m2+=+b.tam; q[key].n++;
+    });
+    var keys=Object.keys(q).sort();
+    var pm2=keys.map(function(k){return q[k].t/q[k].m2;});
+    var cnt=keys.map(function(k){return q[k].n;});
+    kill("pm2");
+    VC.pm2=new Chart(cv,{data:{labels:keys,datasets:[
+      {type:"line",label:"Precio prom. por m² (ponderado)",data:pm2,borderColor:"#1A3352",backgroundColor:"rgba(26,51,82,.08)",fill:true,tension:.25,pointRadius:3.5,pointBackgroundColor:"#1A3352",borderWidth:2.2},
+      {type:"bar",label:"Ventas en el trimestre",data:cnt,yAxisID:"y2",backgroundColor:"rgba(201,138,47,.35)",borderRadius:3}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{font:{size:10},boxWidth:16}},
+        tooltip:{callbacks:{label:function(c){return c.dataset.yAxisID==="y2"?("Ventas: "+c.raw):("$"+Math.round(c.raw).toLocaleString("es-CO")+"/m²");}}}},
+      scales:{y:{ticks:{callback:function(v){return "$"+Math.round(v/1000)+"K";},font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
+        y2:{position:"right",beginAtZero:true,ticks:{stepSize:1,font:{size:9}},grid:{display:false}},
+        x:{grid:{display:false},ticks:{font:{size:9}}}}}});
+  }
+
+  /* ---------- 6) Embudo comercial ---------- */
+  function renderEmbudo(){
+    var cv=document.getElementById("ch_embudo"); if(!cv||typeof Chart==="undefined") return;
+    var nL=(DB.leads||[]).length;
+    var nQ=(DB.quotes||[]).length;
+    var nC=(DB.contracts||[]).length;
+    var nB=activos().length;
+    kill("emb");
+    VC.emb=new Chart(cv,{type:"bar",data:{labels:["Prospectos","Cotizaciones","Contratos emitidos","Compradores activos"],
+      datasets:[{data:[nL,nQ,nC,nB],backgroundColor:["#98a3b3","#c98a2f","#4a7eb5","#1A3352"],borderRadius:5,barThickness:26}]},
+      options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.raw+"";}}}},
+        scales:{x:{beginAtZero:true,ticks:{stepSize:5,font:{size:10}},grid:{color:"rgba(0,0,0,.05)"}},
+          y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+    var note=document.getElementById("embudo_note");
+    if(note){
+      function pct(a,b){ return (b>0&&a<=b)?Math.round(a/b*100)+"%":"—"; }
+      note.innerHTML='<b>Conversión:</b> prospecto→cotización '+pct(nQ,nL)+' · cotización→contrato '+pct(nC,nQ)+
+      '. <b>Ojo con la lectura:</b> la mayoría de los '+nB+' compradores entraron antes de que existieran estos módulos, así que las tasas solo son representativas para la gestión comercial nueva (Etapa 2 en adelante). El embudo se volverá más fiel a medida que todo pase por Prospectos y Cotizaciones.';
+    }
+  }
+
+  /* ---------- hooks ---------- */
+  var _dc=window.drawCharts;
+  if(typeof _dc==="function"){
+    window.drawCharts=function(){ var r=_dc.apply(this,arguments);
+      try{renderCumplimiento();}catch(e){console.warn("cum:",e);}
+      try{renderConcentracion();}catch(e){console.warn("con:",e);}
+      try{renderPm2();}catch(e){console.warn("pm2:",e);}
+      try{renderRunway();}catch(e){console.warn("run:",e);}
+      return r; };
+  }
+  var _rc=window.renderCobranza;
+  if(typeof _rc==="function"){
+    window.renderCobranza=function(){ var r=_rc.apply(this,arguments); try{renderScore();}catch(e){console.warn("score:",e);} return r; };
+  }
+  var _rp=window.renderProspectos;
+  if(typeof _rp==="function"){
+    window.renderProspectos=function(){ var r=_rp.apply(this,arguments); try{renderEmbudo();}catch(e){console.warn("emb:",e);} return r; };
+  }
+  var _t=0,_iv=setInterval(function(){ _t++;
+    if(typeof DB!=="undefined"&&DB&&DB.buyers&&DB.buyers.length&&typeof Chart!=="undefined"&&document.getElementById("ch_cumplimiento")){
+      clearInterval(_iv);
+      if(!VC.cum){ try{renderCumplimiento();renderConcentracion();renderPm2();renderRunway();}catch(_){} }
+    } else if(_t>30) clearInterval(_iv);
+  },1200);
+  window.renderScore=renderScore;
+  window.renderEmbudo=renderEmbudo;
 })();
 </script>
