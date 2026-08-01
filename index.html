@@ -668,23 +668,15 @@
         <button class="tab" data-tab="sistema" onclick="showTab('sistema');renderSistema()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>Sistema</button>
       </div>
     </div>
+    <div class="tgrp last">
+      <div class="tgl">Buscar</div>
+      <div class="tgb">
+        <button class="tab" onclick="openSearch()" title="Ctrl+K"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Ctrl+K</button>
+      </div>
+    </div>
   </div>
 
   <!-- Charts -->
-  <div class="charts" data-section="resumen">
-    <div class="chartcard"><h3>Estado de la cartera</h3><div class="h3sub">Recibido vs. por cobrar</div><div class="cwrap"><canvas id="ch_cartera"></canvas></div></div>
-    <div class="chartcard"><h3>Recaudo por mes</h3><div class="h3sub">Suma de abonos según fecha de venta</div><div class="cwrap"><canvas id="ch_mes"></canvas></div></div>
-    <div class="chartcard"><h3>Ventas por vendedor</h3><div class="h3sub">Valor total intermediado</div><div class="cwrap"><canvas id="ch_vend"></canvas></div></div>
-  </div>
-
-  <!-- Sales trend charts -->
-  <div class="charts2" data-section="resumen">
-    <div class="chartcard"><h3>Ventas por mes</h3><div class="h3sub">Valor vendido (firma de contrato), tendencia y promedio acumulado</div><div class="cwrap tall"><canvas id="ch_ventasmes"></canvas></div></div>
-    <div class="chartcard"><h3>Ventas acumuladas</h3><div class="h3sub">Crecimiento del valor vendido en el tiempo</div><div class="cwrap tall"><canvas id="ch_ventasacum"></canvas></div></div>
-  </div>
-  <div class="promstrip" data-section="resumen" id="promstrip"></div>
-
-  <!-- Panel ejecutivo: salud de cartera y desempeño -->
   <div class="panel" data-section="resumen">
     <div class="panel-h">
       <div><h2>Panel ejecutivo · Cartera y desempeño</h2><div class="desc">Indicadores clave para la toma de decisiones: salud de la cartera, proyección de recaudo y absorción de inventario.</div></div>
@@ -710,6 +702,29 @@
     </div>
   </div>
 
+  <div class="panel" data-section="resumen" style="padding:0;overflow:hidden">
+    <button id="res_det_btn" onclick="toggleResDet()" style="all:unset;display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;cursor:pointer;padding:13px 18px;font-family:inherit">
+      <svg id="res_det_chev" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--navy)" stroke-width="2.5" stroke-linecap="round" style="transition:.18s"><path d="M9 6l6 6-6 6"/></svg>
+      <span style="font-weight:800;color:var(--navy);font-size:13px">Análisis detallado</span>
+      <span style="font-size:11px;color:var(--ink-soft)">gráficos históricos, vendedores, comparativo de etapas, heatmap e indicadores</span>
+    </button>
+  </div>
+
+  <div id="res_det" style="display:none">
+  <div class="charts" data-section="resumen">
+    <div class="chartcard"><h3>Estado de la cartera</h3><div class="h3sub">Recibido vs. por cobrar</div><div class="cwrap"><canvas id="ch_cartera"></canvas></div></div>
+    <div class="chartcard"><h3>Recaudo por mes</h3><div class="h3sub">Suma de abonos según fecha de venta</div><div class="cwrap"><canvas id="ch_mes"></canvas></div></div>
+    <div class="chartcard"><h3>Ventas por vendedor</h3><div class="h3sub">Valor total intermediado</div><div class="cwrap"><canvas id="ch_vend"></canvas></div></div>
+  </div>
+
+  <!-- Sales trend charts -->
+  <div class="charts2" data-section="resumen">
+    <div class="chartcard"><h3>Ventas por mes</h3><div class="h3sub">Valor vendido (firma de contrato), tendencia y promedio acumulado</div><div class="cwrap tall"><canvas id="ch_ventasmes"></canvas></div></div>
+    <div class="chartcard"><h3>Ventas acumuladas</h3><div class="h3sub">Crecimiento del valor vendido en el tiempo</div><div class="cwrap tall"><canvas id="ch_ventasacum"></canvas></div></div>
+  </div>
+  <div class="promstrip" data-section="resumen" id="promstrip"></div>
+
+  <!-- Panel ejecutivo: salud de cartera y desempeño -->
   <!-- Comparativo Etapa 1 vs Etapa 2 -->
   <div class="panel" data-section="resumen">
     <div class="panel-h">
@@ -725,6 +740,8 @@
     </div>
     <div id="payment_heatmap"></div>
   </div>
+
+  </div><!-- /res_det -->
 
   <!-- Table -->
   <div class="panel" data-section="compradores">
@@ -899,7 +916,7 @@
   </div>
 
   <!-- Key indicators -->
-  <div class="panel" data-section="resumen">
+  <div class="panel" data-section="resumen" id="panel_indicadores" style="display:none">
     <div class="panel-h">
       <div><h2>Indicadores clave</h2><div class="desc">Lo esencial del proyecto, en cifras claras</div></div>
     </div>
@@ -6128,5 +6145,228 @@ function logout(){
   },1200);
   window.renderScore=renderScore;
   window.renderEmbudo=renderEmbudo;
+})();
+</script>
+
+<style>
+/* ===== Ficha 360 + Búsqueda global ===== */
+.f360-ov{position:fixed;inset:0;background:rgba(12,20,33,.55);z-index:900;display:none;align-items:flex-start;justify-content:center;padding:4vh 16px;overflow:auto}
+.f360-ov.open{display:flex}
+.f360{background:#fff;border-radius:16px;max-width:880px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden}
+.f360-h{background:#122742;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.f360-h .t1{font-size:17px;font-weight:800}
+.f360-h .t2{font-size:11px;color:#c9d4e4;margin-top:3px}
+.f360-close{all:unset;cursor:pointer;color:#c9d4e4;font-size:20px;line-height:1;padding:4px 8px;border-radius:8px}
+.f360-close:hover{background:rgba(255,255,255,.12);color:#fff}
+.f360-kpis{display:flex;gap:1px;background:var(--line-soft)}
+.f360-k{flex:1;background:#fff;padding:11px 16px;text-align:center;min-width:110px}
+.f360-k .l{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:800}
+.f360-k .v{font-size:14.5px;font-weight:800;color:var(--navy);margin-top:2px}
+.f360-body{padding:16px 22px 20px;max-height:56vh;overflow:auto}
+.f360-body h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);margin:16px 0 8px}
+.f360-body h4:first-child{margin-top:0}
+.f360 table{width:100%;border-collapse:collapse;font-size:11.5px}
+.f360 th{text-align:left;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);border-bottom:1.5px solid var(--navy);padding:5px 8px}
+.f360 td{padding:5.5px 8px;border-bottom:1px solid #eef1f5}
+.f360 .r{text-align:right;font-variant-numeric:tabular-nums}
+.fchip{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.05em;padding:2.5px 9px;border-radius:99px;white-space:nowrap}
+.f360-acts{display:flex;gap:8px;flex-wrap:wrap;padding:14px 22px;border-top:1px solid var(--line-soft);background:#f8f9fb}
+.f360-acts .ab{all:unset;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;padding:9px 15px;border-radius:9px;background:#fff;border:1px solid var(--line);color:var(--navy);transition:.12s}
+.f360-acts .ab:hover{background:#eef1f5}
+.f360-acts .ab.gold{background:#c98a2f;border-color:#c98a2f;color:#fff}
+.f360-acts .ab.gold:hover{background:#b57a25}
+.srch-ov{position:fixed;inset:0;background:rgba(12,20,33,.5);z-index:920;display:none;align-items:flex-start;justify-content:center;padding-top:10vh}
+.srch-ov.open{display:flex}
+.srch{background:#fff;border-radius:14px;width:min(560px,92vw);box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden}
+.srch input{all:unset;box-sizing:border-box;width:100%;padding:16px 20px;font-size:15px;font-family:inherit;border-bottom:1px solid var(--line-soft)}
+.srch-res{max-height:46vh;overflow:auto}
+.srch-it{padding:10px 18px;cursor:pointer;display:flex;gap:10px;align-items:center;border-bottom:1px solid #f2f4f8}
+.srch-it:hover,.srch-it.sel{background:#eef3fa}
+.srch-it .tp{font-size:8px;font-weight:800;letter-spacing:.06em;padding:3px 8px;border-radius:99px;flex:0 0 auto}
+.srch-it .nm{font-size:12.5px;font-weight:600;color:var(--ink)}
+.srch-it .sb{font-size:10.5px;color:var(--ink-soft)}
+.srch-empty{padding:22px;text-align:center;font-size:12px;color:var(--ink-soft)}
+td.f360-link{cursor:pointer}
+td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
+</style>
+
+<div class="f360-ov" id="f360_ov" onclick="if(event.target===this)closeFicha()">
+  <div class="f360">
+    <div class="f360-h"><div><div class="t1" id="f360_t1"></div><div class="t2" id="f360_t2"></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><span id="f360_sem"></span><button class="f360-close" onclick="closeFicha()">✕</button></div></div>
+    <div class="f360-kpis" id="f360_kpis"></div>
+    <div class="f360-body" id="f360_body"></div>
+    <div class="f360-acts" id="f360_acts"></div>
+  </div>
+</div>
+
+<div class="srch-ov" id="srch_ov" onclick="if(event.target===this)closeSearch()">
+  <div class="srch">
+    <input id="srch_in" placeholder="Buscar comprador, lote, prospecto, cotización…  (Esc para cerrar)" autocomplete="off">
+    <div class="srch-res" id="srch_res"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Add-on v8: Ficha 360 · Búsqueda global · Resumen jerárquico
+   ============================================================ */
+(function(){
+  "use strict";
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  var MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fL(iso){ if(!iso) return "—"; var d=new Date(iso+"T12:00"); return d.getDate()+" "+MESN[d.getMonth()].slice(0,3)+" "+d.getFullYear(); }
+  function usuraEA(){ var v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0; }
+
+  function cuotasE(b){
+    var hoy=hoyISO();
+    var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+    var paid=abonado(b), cum=0, out=[];
+    plan.forEach(function(c){
+      var amt=+c.amount||0; cum+=amt;
+      var unc=Math.max(0,Math.min(amt,cum-paid));
+      var est = unc<=1 ? "pagada" : (c.date<=hoy ? (unc<amt-1?"parcial-vencida":"vencida") : (unc<amt-1?"parcial":"pendiente"));
+      var interes=0, ea=usuraEA();
+      if(ea>0&&c.date<=hoy&&unc>0){ var dias=Math.max(0,(new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5); interes=unc*(Math.pow(1+ea/100,dias/365)-1); }
+      out.push({date:c.date,label:c.label||"",amount:amt,pend:unc,estado:est,interes:interes});
+    });
+    return out;
+  }
+  function scoreDe(b){
+    var hoy=hoyISO();
+    var plan=(b.plan||[]).filter(function(c){return c.date&&c.date<=hoy;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+    var pays=(b.payments||[]).filter(function(p){return p.date&&+p.amount>0;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+    var req=0,n=0,onT=0,openN=0,oldest=0;
+    plan.forEach(function(c){
+      req+=(+c.amount||0); n++;
+      var acc=0,cover=null;
+      for(var i=0;i<pays.length;i++){ acc+=(+pays[i].amount); if(acc>=req-1){cover=pays[i].date;break;} }
+      if(cover){ if((new Date(cover+"T12:00")-new Date(c.date+"T12:00"))/864e5<=5) onT++; }
+      else { openN++; oldest=Math.max(oldest,(new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5); }
+    });
+    if(!n) return {sem:"gris",txt:"SIN CUOTAS VENCIDAS"};
+    var p=onT/n*100;
+    if(n<3) return {sem:"gris",txt:"HISTORIAL CORTO"};
+    if(oldest>30||p<50) return {sem:"rojo",txt:"ATENCIÓN"};
+    if(openN||p<80) return {sem:"amarillo",txt:"VIGILAR"};
+    return {sem:"verde",txt:"AL DÍA"};
+  }
+  var COLS={rojo:["#c0392b","#fdeeeb"],amarillo:["#b7791f","#fdf6e7"],verde:["#1d6b3f","#eaf6ee"],gris:["#5b6573","#f1f3f7"],
+    pagada:["#1d6b3f","#eaf6ee"],pendiente:["#5b6573","#f1f3f7"],parcial:["#b7791f","#fdf6e7"],vencida:["#c0392b","#fdeeeb"],"parcial-vencida":["#c0392b","#fdeeeb"]};
+  function chip(k,txt){ var c=COLS[k]||COLS.gris; return '<span class="fchip" style="color:'+c[0]+';background:'+c[1]+'">'+(txt||k).toUpperCase()+'</span>'; }
+
+  /* ---------- Ficha 360 ---------- */
+  function ficha360(id){
+    var b=(DB.buyers||[]).find(function(x){return x.id===id||x.code===id;});
+    if(!b) return;
+    var ab=abonado(b), sal=Math.max(0,saldo(b));
+    var cs=cuotasE(b), venc=0, intT=0;
+    cs.forEach(function(c){ if(c.estado==="vencida"||c.estado==="parcial-vencida"){venc+=c.pend;intT+=c.interes;} });
+    var sc=scoreDe(b);
+    document.getElementById("f360_t1").textContent=(b.code?b.code+" · ":"")+b.name;
+    document.getElementById("f360_t2").textContent=["Lote "+(b.lote||"—"), (b.tam?(+b.tam).toLocaleString("es-CO")+" m²":null),
+      (b.fecha?"Venta: "+b.fecha:null), (b.vend?"Vendedor: "+b.vend:null), (b.tel?"Tel: "+b.tel:null)].filter(Boolean).join("  ·  ");
+    document.getElementById("f360_sem").innerHTML=chip(sc.sem,sc.txt);
+    document.getElementById("f360_kpis").innerHTML=
+      '<div class="f360-k"><div class="l">Valor</div><div class="v">'+m$(b.total)+'</div></div>'+
+      '<div class="f360-k"><div class="l">Abonado</div><div class="v" style="color:#1d6b3f">'+m$(ab)+'</div></div>'+
+      '<div class="f360-k"><div class="l">Saldo</div><div class="v">'+m$(sal)+'</div></div>'+
+      '<div class="f360-k"><div class="l">Vencido</div><div class="v" style="color:'+(venc>1?"#c0392b":"inherit")+'">'+(venc>1?m$(venc):"—")+'</div></div>'+
+      '<div class="f360-k"><div class="l">Mora est. ('+(usuraEA()||"—")+'% E.A.)</div><div class="v">'+(intT>1?m$(intT):"—")+'</div></div>';
+    var planH = cs.length ? '<h4>Plan de pagos</h4><table><thead><tr><th>Vence</th><th>Concepto</th><th class="r">Cuota</th><th class="r">Pendiente</th><th>Estado</th></tr></thead><tbody>'+
+      cs.map(function(c){return '<tr><td>'+fL(c.date)+'</td><td>'+c.label+'</td><td class="r">'+m$(c.amount)+'</td><td class="r">'+(c.pend>1?m$(c.pend):"—")+'</td><td>'+chip(c.estado)+'</td></tr>';}).join("")+'</tbody></table>'
+      : '<div class="sys-note">Sin plan de pagos registrado.</div>';
+    var pays=(b.payments||[]).slice().sort(function(x,y){return (x.date||"")<(y.date||"")?-1:1;});
+    var payH = pays.length ? '<h4>Abonos ('+pays.length+')</h4><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Canal</th><th class="r">Valor</th></tr></thead><tbody>'+
+      pays.map(function(p){return '<tr><td>'+fL(p.date)+'</td><td>'+(p.recibo!=null&&p.recibo!==""?("Recibo "+p.recibo):(p.note||"Abono"))+'</td><td>'+(p.chan||"—")+'</td><td class="r">'+m$(p.amount)+'</td></tr>';}).join("")+'</tbody></table>' : "";
+    document.getElementById("f360_body").innerHTML=planH+payH;
+    var tel=(b.tel||"").replace(/\D/g,"");
+    document.getElementById("f360_acts").innerHTML=
+      '<button class="ab gold" onclick="printStatement(\''+b.id+'\')">⎙ Estado de cuenta</button>'+
+      '<button class="ab" onclick="try{copyReminder(\''+b.id+'\',this)}catch(_){}">Copiar recordatorio</button>'+
+      (tel?'<a class="ab" style="text-decoration:none" target="_blank" href="https://wa.me/57'+tel+'">WhatsApp</a>':"")+
+      (b.promesaUrl?'<a class="ab" style="text-decoration:none" target="_blank" href="'+b.promesaUrl+'">Carpeta Drive ↗</a>':"");
+    document.getElementById("f360_ov").classList.add("open");
+  }
+  function closeFicha(){ document.getElementById("f360_ov").classList.remove("open"); }
+
+  // triggers: código en la tabla de Compradores y filas del score
+  document.addEventListener("click",function(ev){
+    var td=ev.target.closest&&ev.target.closest("td");
+    if(td){
+      var t=(td.textContent||"").trim();
+      if(/^V\d{2,3}$/.test(t)&&td.closest("table")){ var b=(DB.buyers||[]).find(function(x){return x.code===t;}); if(b){ ficha360(b.id); return; } }
+    }
+    var tr=ev.target.closest&&ev.target.closest("#score_body tr");
+    if(tr&&!ev.target.closest("a,button")){ var bEl=tr.querySelector("td b"); if(bEl){ var b2=(DB.buyers||[]).find(function(x){return x.code===bEl.textContent.trim();}); if(b2) ficha360(b2.id); } }
+  });
+
+  /* ---------- Búsqueda global ---------- */
+  var selIdx=0, curRes=[];
+  function idx(){
+    var out=[];
+    (DB.buyers||[]).forEach(function(b){ if(b.code==="PD"&&!b.name) return;
+      out.push({tp:"Comprador",c:"#1A3352",bg:"#e8edf5",nm:(b.code?b.code+" · ":"")+b.name,sb:"Lote "+(b.lote||"—")+" · saldo "+m$(Math.max(0,saldo(b))),
+        hay:((b.code||"")+" "+(b.name||"")+" "+(b.lote||"")+" "+(b.tel||"")).toLowerCase(),
+        go:function(){ closeSearch(); ficha360(b.id); }}); });
+    (DB.leads||[]).forEach(function(l){ var n=l.nombre||l.name||"Prospecto";
+      out.push({tp:"Prospecto",c:"#5b6573",bg:"#f1f3f7",nm:n,sb:(l.tel||l.phone||"")+(l.interes||l.lote?(" · "+(l.interes||l.lote)):""),
+        hay:JSON.stringify(l).toLowerCase(),
+        go:function(){ closeSearch(); showTab("prospectos"); try{renderProspectos();}catch(_){} }}); });
+    (DB.quotes||[]).forEach(function(q){ var n=q.num||q.numero||"Cotización";
+      out.push({tp:"Cotización",c:"#b7791f",bg:"#fdf6e7",nm:n+(q.cliente||q.nombre?(" · "+(q.cliente||q.nombre)):""),sb:"Lote "+(q.lote||"—"),
+        hay:JSON.stringify(q).toLowerCase(),
+        go:function(){ closeSearch(); showTab("cotizaciones"); try{renderCotizaciones();}catch(_){} }}); });
+    ((DB.availLots||[]).concat(DB.availLots2||[])).forEach(function(c){
+      out.push({tp:"Lote disp.",c:"#1d6b3f",bg:"#eaf6ee",nm:"Lote "+c,sb:"disponible",hay:("lote "+c).toLowerCase(),
+        go:function(){ closeSearch(); showTab("inventario"); }}); });
+    return out;
+  }
+  function openSearch(){ document.getElementById("srch_ov").classList.add("open");
+    var i=document.getElementById("srch_in"); i.value=""; renderRes(""); setTimeout(function(){i.focus();},50); }
+  function closeSearch(){ document.getElementById("srch_ov").classList.remove("open"); }
+  function renderRes(q){
+    q=(q||"").trim().toLowerCase();
+    var all=idx();
+    curRes = q ? all.filter(function(it){return it.hay.indexOf(q)>=0;}).slice(0,12) : [];
+    selIdx=0;
+    var el=document.getElementById("srch_res");
+    if(!q){ el.innerHTML='<div class="srch-empty">Escribe un nombre, código (V004), lote (K10), teléfono…</div>'; return; }
+    if(!curRes.length){ el.innerHTML='<div class="srch-empty">Sin resultados para «'+q+'»</div>'; return; }
+    el.innerHTML=curRes.map(function(it,i){
+      return '<div class="srch-it'+(i===selIdx?" sel":"")+'" data-i="'+i+'"><span class="tp" style="color:'+it.c+';background:'+it.bg+'">'+it.tp.toUpperCase()+'</span><div><div class="nm">'+it.nm+'</div><div class="sb">'+it.sb+'</div></div></div>';
+    }).join("");
+    el.querySelectorAll(".srch-it").forEach(function(d){ d.onclick=function(){ curRes[+d.dataset.i].go(); }; });
+  }
+  document.addEventListener("keydown",function(ev){
+    if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==="k"){ ev.preventDefault(); openSearch(); return; }
+    var ov=document.getElementById("srch_ov");
+    if(ov&&ov.classList.contains("open")){
+      if(ev.key==="Escape"){ closeSearch(); }
+      else if(ev.key==="ArrowDown"){ ev.preventDefault(); selIdx=Math.min(curRes.length-1,selIdx+1); paint(); }
+      else if(ev.key==="ArrowUp"){ ev.preventDefault(); selIdx=Math.max(0,selIdx-1); paint(); }
+      else if(ev.key==="Enter"&&curRes[selIdx]){ curRes[selIdx].go(); }
+    } else if(ev.key==="Escape"){ closeFicha(); }
+  });
+  function paint(){ document.querySelectorAll(".srch-it").forEach(function(d,i){ d.classList.toggle("sel",i===selIdx); }); }
+  var _si=document.getElementById("srch_in");
+  if(_si) _si.addEventListener("input",function(){ renderRes(this.value); });
+
+  /* ---------- Resumen jerárquico ---------- */
+  function applyResDet(open){
+    var w=document.getElementById("res_det"), ik=document.getElementById("panel_indicadores"), ch=document.getElementById("res_det_chev");
+    if(w) w.style.display=open?"":"none";
+    if(ik) ik.style.display=open?"":"none";
+    if(ch) ch.style.transform=open?"rotate(90deg)":"";
+    try{ localStorage.setItem("sl_resdet",open?"1":"0"); }catch(_){}
+    if(open){ try{ if(window.drawCharts) drawCharts(); }catch(_){} }
+  }
+  function toggleResDet(){ var w=document.getElementById("res_det"); applyResDet(w&&w.style.display==="none"); }
+  try{ if(localStorage.getItem("sl_resdet")==="1") applyResDet(true); }catch(_){}
+
+  window.ficha360=ficha360; window.closeFicha=closeFicha;
+  window.openSearch=openSearch; window.closeSearch=closeSearch;
+  window.toggleResDet=toggleResDet;
 })();
 </script>
