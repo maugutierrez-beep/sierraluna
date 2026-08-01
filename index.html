@@ -680,6 +680,7 @@
   <div class="panel" data-section="resumen">
     <div class="panel-h">
       <div><h2>Panel ejecutivo · Cartera y desempeño</h2><div class="desc">Indicadores clave para la toma de decisiones: salud de la cartera, proyección de recaudo y absorción de inventario.</div></div>
+      <button class="btn-gold" onclick="printInforme()">⎙ Informe PDF</button>
     </div>
     <div class="exec-kpis" id="exec_kpis"></div>
     <div class="charts2" style="margin-top:16px">
@@ -929,6 +930,14 @@
   </p>
 
   <!-- ===== Sistema ===== -->
+  <div class="panel sec-hidden" data-section="sistema">
+    <div class="panel-h">
+      <div><h2>Respaldo de datos</h2><div class="desc">Descarga una copia completa de la base a tu computador. Es tu seguro si algo le pasara a Supabase — hazlo al menos una vez al mes.</div></div>
+      <button class="btn-gold" onclick="descargarRespaldo()">⬇ Descargar respaldo</button>
+    </div>
+    <div style="padding:12px 18px 16px" id="bk_info"></div>
+  </div>
+
   <div class="panel sec-hidden" data-section="sistema">
     <div class="panel-h">
       <div><h2>Integridad de datos</h2><div class="desc">Revisión automática de inconsistencias contables. Solo lectura: no modifica nada.</div></div>
@@ -6368,5 +6377,227 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   window.ficha360=ficha360; window.closeFicha=closeFicha;
   window.openSearch=openSearch; window.closeSearch=closeSearch;
   window.toggleResDet=toggleResDet;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v9: Respaldo descargable + Informe ejecutivo PDF
+   ============================================================ */
+(function(){
+  "use strict";
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function mS(n){ n=+n||0;
+    if(n>=1e9) return "$"+(n/1e9).toFixed(1).replace(".",",")+" mil M";
+    if(n>=1e6) return "$"+Math.round(n/1e6)+" M";
+    return "$"+Math.round(n).toLocaleString("es-CO"); }
+  var MESL=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  var MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function addM(ym,k){ var p=ym.split("-"),y=+p[0],m=+p[1]-1+k; return (y+Math.floor(m/12))+"-"+String(m%12+1).padStart(2,"0"); }
+  function lab(ym){ var p=ym.split("-"); return MESL[+p[1]-1]+"-"+p[0].slice(2); }
+  function activos(){ return (DB.buyers||[]).filter(function(b){return b.code!=="PD"&&(+b.total>0);}); }
+  function usuraEA(){ var v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0; }
+  function fventa(b){ var f=(b.fecha||"").trim().toLowerCase();
+    var m=f.match(/^(\d{4})-(\d{2})/); if(m) return m[1]+"-"+m[2];
+    m=f.match(/^([a-z]{3})[-\s]?(\d{2,4})$/);
+    if(m){ var i=MESL.indexOf(m[1]); if(i>=0){ var y=m[2].length===2?"20"+m[2]:m[2]; return y+"-"+String(i+1).padStart(2,"0"); } }
+    return null; }
+  function curUser(){ try{ return sessionStorage.getItem("sl_user")||"—"; }catch(_){ return "—"; } }
+
+  /* ================= RESPALDO ================= */
+  function renderBkInfo(){
+    var el=document.getElementById("bk_info"); if(!el) return;
+    var ts=+((DB.config||{}).lastBackupTs)||0, who=(DB.config||{}).lastBackupBy||"";
+    if(!ts){ el.innerHTML='<div class="hc-item warn"><span class="hc-ico">!</span><div><b>Nunca se ha descargado un respaldo.</b> Los snapshots internos viven en la misma base — si Supabase fallara, no habría copia por fuera. Descarga la primera ahora: toma dos segundos.</div></div>'; return; }
+    var dias=Math.floor((Date.now()-ts)/864e5);
+    var d=new Date(ts);
+    var f=d.getDate()+" de "+MESN[d.getMonth()]+" de "+d.getFullYear();
+    if(dias>30){
+      el.innerHTML='<div class="hc-item warn"><span class="hc-ico">!</span><div>Último respaldo hace <b>'+dias+' días</b> ('+f+(who?", por "+who:"")+'). Ya toca uno nuevo.</div></div>';
+    } else {
+      el.innerHTML='<div class="sys-note">Último respaldo: <b>'+f+'</b>'+(who?" · por "+who:"")+' · hace '+dias+' día'+(dias===1?"":"s")+'. ✓</div>';
+    }
+  }
+  function descargarRespaldo(){
+    try{
+      var payload={app:"Sierraluna Control de Recaudo",exportado:new Date().toISOString(),por:curUser(),data:DB};
+      var blob=new Blob([JSON.stringify(payload,null,1)],{type:"application/json"});
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(blob);
+      a.download="sierraluna_respaldo_"+hoyISO()+".json";
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },800);
+      if(!DB.config) DB.config={};
+      DB.config.lastBackupTs=Date.now(); DB.config.lastBackupBy=curUser();
+      try{ if(window.slAudit) slAudit({action:"Respaldo descargado",detail:"JSON completo"}); }catch(_){}
+      if(window.save) save();
+      renderBkInfo();
+    }catch(e){ alert("No se pudo generar el respaldo: "+e.message); }
+  }
+  var _rs=window.renderSistema;
+  if(typeof _rs==="function"){ window.renderSistema=function(){ var r=_rs.apply(this,arguments); try{renderBkInfo();}catch(_){} return r; }; }
+
+  /* ================= INFORME EJECUTIVO ================= */
+  function agingData(){
+    var hoy=hoyISO(), B={a:0,b:0,c:0,d:0}, top=[];
+    activos().forEach(function(b){
+      var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+      var paid=abonado(b), cum=0, venc=0, oldest=0, intT=0, ea=usuraEA();
+      plan.forEach(function(c){
+        var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0,Math.min(amt,cum-paid));
+        if(unc>1&&c.date<=hoy){
+          var dias=(new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5;
+          venc+=unc; oldest=Math.max(oldest,dias);
+          if(ea>0) intT+=unc*(Math.pow(1+ea/100,dias/365)-1);
+          if(dias<=30) B.a+=unc; else if(dias<=60) B.b+=unc; else if(dias<=90) B.c+=unc; else B.d+=unc;
+        }
+      });
+      if(venc>1) top.push({code:b.code,name:b.name,venc:venc,dias:Math.round(oldest),mora:intT});
+    });
+    top.sort(function(x,y){return y.venc-x.venc;});
+    return {buckets:B, top:top};
+  }
+  function scoreCounts(){
+    var hoy=hoyISO(), C={rojo:0,amarillo:0,verde:0,gris:0}, rojos=[];
+    activos().forEach(function(b){
+      var plan=(b.plan||[]).filter(function(c){return c.date&&c.date<=hoy;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+      if(!plan.length) return;
+      var pays=(b.payments||[]).filter(function(p){return p.date&&+p.amount>0;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
+      var req=0,n=0,onT=0,openN=0,oldest=0;
+      plan.forEach(function(c){ req+=(+c.amount||0); n++;
+        var acc=0,cover=null;
+        for(var i=0;i<pays.length;i++){ acc+=(+pays[i].amount); if(acc>=req-1){cover=pays[i].date;break;} }
+        if(cover){ if((new Date(cover+"T12:00")-new Date(c.date+"T12:00"))/864e5<=5) onT++; }
+        else { openN++; oldest=Math.max(oldest,(new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5); }
+      });
+      var p=onT/n*100;
+      if(n<3) C.gris++;
+      else if(oldest>30||p<50){ C.rojo++; rojos.push(b.code+" "+b.name); }
+      else if(openN||p<80) C.amarillo++;
+      else C.verde++;
+    });
+    return {c:C, rojos:rojos};
+  }
+  function buildInforme(){
+    var hoy=new Date(), hISO=hoyISO();
+    var bs=activos();
+    var total=bs.reduce(function(a,b){return a+(+b.total||0);},0);
+    var rec=bs.reduce(function(a,b){return a+abonado(b);},0);
+    var sal=Math.max(0,total-rec);
+    // velocidad
+    var byMo={}; bs.forEach(function(b){(b.payments||[]).forEach(function(p){ if(p.date&&+p.amount>0){ var ym=p.date.slice(0,7); byMo[ym]=(byMo[ym]||0)+(+p.amount);} });});
+    var cur=hISO.slice(0,7);
+    function velN(n){ var s=0; for(var i=1;i<=n;i++) s+=byMo[addM(cur,-i)]||0; return s/n; }
+    var v3=velN(3), v6=velN(6);
+    var etaM=v3>0?Math.ceil(sal/v3):null;
+    var etaTxt=etaM?(etaM>60?"> 5 años":lab(addM(cur,etaM)).replace("-"," 20")+" (~"+etaM+" meses)"):"—";
+    // cumplimiento últimos 6 meses
+    var esp={}; bs.forEach(function(b){(b.plan||[]).forEach(function(c){ if(c.date){ var ym=c.date.slice(0,7); esp[ym]=(esp[ym]||0)+(+c.amount||0);} });});
+    var cumRows="", ultCump=null;
+    for(var i=6;i>=0;i--){
+      var mth=addM(cur,-i), e=esp[mth]||0, r=byMo[mth]||0;
+      var p=e>0?Math.round(r/e*100):null;
+      if(i===1&&p!=null) ultCump=p;
+      cumRows+='<tr><td>'+lab(mth)+(i===0?" (en curso)":"")+'</td><td class="r">'+m$(e)+'</td><td class="r">'+m$(r)+'</td><td class="r"><b style="color:'+(p==null?"#5b6573":(p>=90?"#1d6b3f":(p>=70?"#b7791f":"#c0392b")))+'">'+(p==null?"—":p+"%")+'</b></td></tr>';
+    }
+    // aging + score
+    var ag=agingData(), sc=scoreCounts();
+    var vencT=ag.buckets.a+ag.buckets.b+ag.buckets.c+ag.buckets.d;
+    var moraT=ag.top.reduce(function(a,t){return a+t.mora;},0);
+    var topRows=ag.top.slice(0,5).map(function(t){
+      return '<tr><td><b>'+t.code+'</b> '+t.name+'</td><td class="r">'+m$(t.venc)+'</td><td class="r">'+t.dias+' días</td><td class="r">'+(t.mora>1?m$(t.mora):"—")+'</td></tr>';}).join("");
+    // comercial
+    var limYM=addM(cur,-5);
+    function vst(st){ return bs.filter(function(b){var ym=fventa(b); return (b.stage||1)===st&&ym&&ym>=limYM;}).length; }
+    var v1=vst(1), v2=vst(2), d1=(DB.availLots||[]).length, d2=(DB.availLots2||[]).length;
+    var run1=v1>0?Math.round(d1/(v1/6)):null;
+    // pm2 último trimestre vs anterior
+    var q={}; bs.forEach(function(b){ var ym=fventa(b); if(!ym||!(+b.tam>0)) return;
+      var d=ym.split("-"); var key=d[0]+"-T"+(Math.floor((+d[1]-1)/3)+1);
+      if(!q[key]) q[key]={t:0,m2:0}; q[key].t+=+b.total; q[key].m2+=+b.tam; });
+    var qk=Object.keys(q).sort(); var pmU=null,pmA=null;
+    if(qk.length){ var k1=qk[qk.length-1]; pmU={k:k1,v:q[k1].t/q[k1].m2}; if(qk.length>1){ var k0=qk[qk.length-2]; pmA={k:k0,v:q[k0].t/q[k0].m2}; } }
+    // imágenes de gráficos en vivo
+    function img(id){ try{ var c=Chart.getChart(id); return c?'<img src="'+c.canvas.toDataURL("image/png")+'" style="width:100%;border:1px solid #e6eaf1;border-radius:8px">':""; }catch(_){ return ""; } }
+    var imgVelo=img("ch_velocidad"), imgCum=img("ch_cumplimiento");
+    // hallazgos automáticos
+    var notas=[];
+    if(ultCump!=null) notas.push("Cumplimiento del último mes completo: "+ultCump+"% de lo esperado según planes.");
+    if(vencT>1) notas.push("Cartera vencida total: "+m$(vencT)+" ("+(total>0?(vencT/total*100).toFixed(1):0)+"% del contratado), con mora estimada de "+m$(moraT)+" a la tasa de usura vigente ("+usuraEA()+"% E.A.).");
+    if(sc.c.rojo) notas.push(sc.c.rojo+" comprador"+(sc.c.rojo===1?"":"es")+" en estado de Atención (mora abierta > 30 días o puntualidad < 50%).");
+    if(etaM) notas.push("A ritmo de los últimos 3 meses ("+mS(v3)+"/mes), la cartera contratada se completa hacia "+etaTxt+".");
+    if(run1!=null&&run1>=24&&d1>0) notas.push("Etapa 1: "+d1+" lotes disponibles con "+v1+" venta"+(v1===1?"":"s")+" en 6 meses — inventario para "+(run1>=36?"más de 3 años":run1+" meses")+" al ritmo actual.");
+    if(ag.top.length&&vencT>0){ var t0=ag.top[0]; notas.push("Mayor deudor vencido: "+t0.code+" "+t0.name+" con "+m$(t0.venc)+" ("+(t0.venc/vencT*100).toFixed(0)+"% del vencido total).");}
+    var fL=hoy.getDate()+" de "+MESN[hoy.getMonth()]+" de "+hoy.getFullYear();
+    function K(l,v,c){ return '<div class="k"><div class="l">'+l+'</div><div class="v"'+(c?' style="color:'+c+'"':"")+'>'+v+'</div></div>'; }
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Informe ejecutivo Sierraluna</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
+    '<style>'+
+    '@page{size:A4;margin:12mm 14mm 16mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:"SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · INFORME DE GESTIÓN · CONFIDENCIAL";font-family:"Montserrat",sans-serif;font-size:6.6px;letter-spacing:.5px;color:#6b7686}@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:"Montserrat",sans-serif;font-size:7.5px;color:#6b7686}}'+
+    '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:9.5px;line-height:1.5;color:#20293a}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:8px;margin-bottom:14px}'+
+    '.hd img{height:38px}.hd .t{text-align:right}'+
+    '.hd .a{font-size:13px;font-weight:800;letter-spacing:2.5px;color:#1A3352}'+
+    '.hd .b{font-size:8px;color:#c98a2f;font-weight:700;letter-spacing:1px;margin-top:2px}'+
+    'h2{font-size:9.5px;color:#1A3352;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;margin:14px 0 7px;break-after:avoid}'+
+    'h2::before{content:"";display:inline-block;width:7px;height:7px;background:#c98a2f;margin-right:7px;border-radius:2px}'+
+    '.kpis{display:flex;flex-wrap:wrap;gap:8px}'+
+    '.k{flex:1;min-width:120px;border:1px solid #e2e7ef;border-radius:9px;padding:8px 11px;text-align:center}'+
+    '.k .l{font-size:6.8px;letter-spacing:1.1px;text-transform:uppercase;color:#5b6573;font-weight:700}'+
+    '.k .v{font-size:13px;font-weight:800;color:#1A3352;margin-top:2px}'+
+    'table{width:100%;border-collapse:collapse;font-size:8.8px;break-inside:auto}'+
+    'th{text-align:left;font-size:7.3px;letter-spacing:.7px;text-transform:uppercase;color:#5b6573;border-bottom:1.4px solid #1A3352;padding:4px 7px}'+
+    'th.r{text-align:right}td{padding:4.5px 7px;border-bottom:1px solid #edf0f5}tr{break-inside:avoid}'+
+    '.r{text-align:right;font-variant-numeric:tabular-nums}'+
+    '.dos{display:flex;gap:12px}.dos>div{flex:1}'+
+    '.notas{background:#f8f9fb;border:1px solid #e2e7ef;border-radius:9px;padding:11px 15px}'+
+    '.notas li{margin:0 0 5px 14px;font-size:9px}'+
+    '.pie{font-size:7.8px;color:#6b7686;margin-top:14px}'+
+    '</style></head><body>'+
+    '<div class="hd"><img src="'+slA("logo-navy.png")+'"><div class="t"><div class="a">INFORME EJECUTIVO</div><div class="b">SIERRALUNA CLUB RESIDENCIAL · CORTE AL '+fL.toUpperCase()+'</div></div></div>'+
+    '<h2>Resumen general</h2><div class="kpis">'+
+      K("Cartera contratada",mS(total))+K("Recaudado",mS(rec),"#1d6b3f")+K("Saldo por recaudar",mS(sal))+
+      K("Avance",(total>0?(rec/total*100).toFixed(1):"0")+"%")+K("Vencido",mS(vencT),vencT>1?"#c0392b":null)+
+      K("Mora estimada",moraT>1?mS(moraT):"—")+K("Compradores",bs.length)+'</div>'+
+    '<h2>Velocidad de recaudo</h2><div class="kpis">'+
+      K("Ritmo 3 meses",mS(v3)+"/mes")+K("Ritmo 6 meses",mS(v6)+"/mes")+K("Meta a ritmo actual",etaTxt,"#c98a2f")+'</div>'+
+    (imgVelo?'<div style="margin-top:8px">'+imgVelo+'</div>':"")+
+    '<h2>Cumplimiento mensual (esperado vs. real)</h2>'+
+    '<table><thead><tr><th>Mes</th><th class="r">Esperado (planes)</th><th class="r">Recaudado</th><th class="r">%</th></tr></thead><tbody>'+cumRows+'</tbody></table>'+
+    (imgCum?'<div style="margin-top:8px">'+imgCum+'</div>':"")+
+    '<h2>Cartera vencida</h2><div class="dos"><div>'+
+      '<table><thead><tr><th>Antigüedad</th><th class="r">Monto</th></tr></thead><tbody>'+
+      '<tr><td>1 – 30 días</td><td class="r">'+m$(ag.buckets.a)+'</td></tr>'+
+      '<tr><td>31 – 60 días</td><td class="r">'+m$(ag.buckets.b)+'</td></tr>'+
+      '<tr><td>61 – 90 días</td><td class="r">'+m$(ag.buckets.c)+'</td></tr>'+
+      '<tr><td>&gt; 90 días</td><td class="r" style="color:#c0392b"><b>'+m$(ag.buckets.d)+'</b></td></tr>'+
+      '<tr><td><b>Total</b></td><td class="r"><b>'+m$(vencT)+'</b></td></tr></tbody></table></div><div>'+
+      '<table><thead><tr><th>Top deudores</th><th class="r">Vencido</th><th class="r">Mora +vieja</th><th class="r">Interés est.</th></tr></thead><tbody>'+topRows+'</tbody></table></div></div>'+
+    '<h2>Comportamiento de pago</h2><div class="kpis">'+
+      K("Al día",sc.c.verde,"#1d6b3f")+K("Vigilar",sc.c.amarillo,"#b7791f")+K("Atención",sc.c.rojo,"#c0392b")+K("Historial corto",sc.c.gris)+'</div>'+
+    (sc.rojos.length?'<div style="font-size:8.5px;color:#5b6573;margin-top:6px"><b>En Atención:</b> '+sc.rojos.join(" · ")+'</div>':"")+
+    '<h2>Comercial e inventario</h2><div class="kpis">'+
+      K("Ventas 6m · Etapa 1",v1)+K("Ventas 6m · Etapa 2",v2)+K("Disponibles E1",d1)+K("Disponibles E2",d2||"—")+
+      (pmU?K("Precio m² últ. trim ("+pmU.k+")","$"+Math.round(pmU.v).toLocaleString("es-CO")):"")+
+      (pmA&&pmU?K("Variación vs "+pmA.k,((pmU.v/pmA.v-1)*100).toFixed(1)+"%",(pmU.v>=pmA.v?"#1d6b3f":"#c0392b")):"")+'</div>'+
+    '<h2>Hallazgos del periodo</h2><div class="notas"><ul>'+notas.map(function(n){return "<li>"+n+"</li>";}).join("")+'</ul></div>'+
+    '<div class="pie">Informe generado automáticamente por el sistema Control de Recaudo el '+fL+' por '+curUser()+'. Las cifras de mora son estimaciones a la tasa máxima legal vigente; la liquidación definitiva para cobro debe hacerse con el histórico de tasas por periodo. Documento confidencial de Sierraluna Group S.A.S.</div>'+
+    '</body></html>';
+  }
+  function printInforme(){
+    var win=window.open("","_blank","width=980,height=1200");
+    if(!win){ alert("Permite las ventanas emergentes para generar el informe."); return; }
+    win.document.write(buildInforme());
+    win.document.close();
+    win.onload=function(){ setTimeout(function(){ try{ win.focus(); win.print(); }catch(_){}},600); };
+    try{ if(window.slAudit) slAudit({action:"Informe ejecutivo generado",detail:"corte "+hoyISO()}); }catch(_){}
+  }
+
+  window.descargarRespaldo=descargarRespaldo;
+  window.renderBkInfo=renderBkInfo;
+  window.printInforme=printInforme;
 })();
 </script>
