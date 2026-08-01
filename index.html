@@ -899,6 +899,13 @@
   <!-- Lot inventory -->
   <div class="panel" data-section="inventario">
     <div class="panel-h">
+      <div><h2>Mapa del proyecto</h2><div class="desc">Esquema por manzanas (no a escala). Clic en un lote vendido abre la ficha del comprador; clic en uno disponible abre el cotizador con el lote listo.</div></div>
+    </div>
+    <div style="padding:14px 18px 18px" id="mapa_body"></div>
+  </div>
+
+  <div class="panel" data-section="inventario">
+    <div class="panel-h">
       <div><h2>Inventario de lotes · Etapa 1</h2><div class="desc">Estado por manzana según el plano. Los lotes vendidos se sincronizan con la tabla de compradores.</div></div>
       <div class="toolbar"><button class="btn-line" onclick="restoreAvail()">↺ Restablecer disponibles</button><button class="btn-line" onclick="addAvailLot(1)">+ Lote disponible</button></div>
     </div>
@@ -6599,5 +6606,114 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   window.descargarRespaldo=descargarRespaldo;
   window.renderBkInfo=renderBkInfo;
   window.printInforme=printInforme;
+})();
+</script>
+
+<style>
+.mz{margin-bottom:14px}
+.mz-h{font-size:10px;font-weight:800;letter-spacing:.09em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:6px}
+.mz-row{display:flex;flex-wrap:wrap;gap:6px}
+.ml{width:64px;height:52px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px solid transparent;transition:.12s;position:relative;user-select:none}
+.ml:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(0,0,0,.13)}
+.ml .c{font-size:12.5px;font-weight:800}
+.ml .s{font-size:7px;font-weight:700;letter-spacing:.04em;margin-top:1px;text-transform:uppercase}
+.ml.vend{background:#122742;border-color:#122742;color:#fff}
+.ml.vend .s{color:#c9d4e4}
+.ml.mora{background:#fdeeeb;border-color:#e8b3a9;color:#c0392b}
+.ml.disp{background:#eaf6ee;border-color:#bfe3cc;color:#1d6b3f}
+.ml .dot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:99px}
+.ml .dot.r{background:#e05a3a}.ml .dot.g{background:#37b26a}
+.map-leg{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:10.5px;color:var(--ink-soft)}
+.map-leg span{display:inline-flex;align-items:center;gap:6px}
+.map-leg i{width:13px;height:13px;border-radius:4px;display:inline-block}
+.map-stage{font-size:11px;font-weight:800;color:var(--navy);letter-spacing:.05em;margin:16px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line-soft)}
+.map-stage:first-child{margin-top:0}
+</style>
+
+<script>
+/* ============================================================
+   Add-on v10: Mapa esquemático del proyecto
+   ============================================================ */
+(function(){
+  "use strict";
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parseLote(s){ var m=String(s||"").trim().toUpperCase().match(/^([A-Z]{1,2})\s*-?\s*(\d{1,2})/); return m?{mz:m[1],n:+m[2],code:m[1]+m[2]}:null; }
+  function vencidoDe(b){
+    var hoy=hoyISO(), paid=abonado(b), cum=0, v=0;
+    (b.plan||[]).filter(function(c){return c.date;}).sort(function(x,y){return x.date<y.date?-1:1;})
+      .forEach(function(c){ var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0,Math.min(amt,cum-paid));
+        if(unc>1&&c.date<=hoy) v+=unc; });
+    return v;
+  }
+  function renderMapa(){
+    var el=document.getElementById("mapa_body"); if(!el||typeof DB==="undefined"||!DB.buyers) return;
+    var lots={}; // code -> {mz,n,estado,buyer,vencido,stage}
+    var sinLote=[];
+    (DB.buyers||[]).forEach(function(b){
+      if(b.code==="PD"||!(+b.total>0)) return;
+      var p=parseLote(b.lote);
+      if(!p){ sinLote.push((b.code||"")+" "+(b.name||"").split(" ").slice(0,2).join(" ")); return; }
+      lots[p.code]={mz:p.mz,n:p.n,estado:"vend",buyer:b,vencido:vencidoDe(b),stage:(b.stage||1)};
+    });
+    (DB.availLots||[]).forEach(function(c){ var p=parseLote(c); if(p&&!lots[p.code]) lots[p.code]={mz:p.mz,n:p.n,estado:"disp",stage:1}; });
+    (DB.availLots2||[]).forEach(function(c){ var p=parseLote(c); if(p&&!lots[p.code]) lots[p.code]={mz:p.mz,n:p.n,estado:"disp",stage:2}; });
+    var nV=0,nD=0,nM=0;
+    Object.values(lots).forEach(function(l){ if(l.estado==="vend"){nV++; if(l.vencido>1)nM++;} else nD++; });
+    var html='<div class="map-leg">'+
+      '<span><i style="background:#122742"></i>Vendido al día ('+(nV-nM)+')</span>'+
+      '<span><i style="background:#fdeeeb;border:1.5px solid #e8b3a9"></i>Vendido en mora ('+nM+')</span>'+
+      '<span><i style="background:#eaf6ee;border:1.5px solid #bfe3cc"></i>Disponible ('+nD+')</span></div>';
+    [1,2].forEach(function(stage){
+      var st=Object.values(lots).filter(function(l){return l.stage===stage;});
+      if(!st.length) return;
+      html+='<div class="map-stage">ETAPA '+stage+'</div>';
+      var mzs={}; st.forEach(function(l){ (mzs[l.mz]=mzs[l.mz]||[]).push(l); });
+      Object.keys(mzs).sort().forEach(function(mz){
+        var row=mzs[mz].sort(function(a,b){return a.n-b.n;});
+        html+='<div class="mz"><div class="mz-h">Manzana '+mz+'</div><div class="mz-row">';
+        row.forEach(function(l){
+          var code=l.mz+l.n;
+          if(l.estado==="vend"){
+            var cls=l.vencido>1?"ml mora":"ml vend";
+            var sub=l.vencido>1?"en mora":(l.buyer.code||"");
+            html+='<div class="'+cls+'" onclick="ficha360(\''+l.buyer.id+'\')" title="'+(l.buyer.code||"")+' · '+String(l.buyer.name||"").replace(/"/g,"&quot;")+(l.vencido>1?' · vencido '+m$(l.vencido):"")+'">'+
+              '<span class="dot '+(l.vencido>1?"r":"g")+'"></span><span class="c">'+code+'</span><span class="s">'+sub+'</span></div>';
+          } else {
+            html+='<div class="ml disp" onclick="mapaCotizar(\''+code+'\')" title="Disponible · clic para cotizar">'+
+              '<span class="c">'+code+'</span><span class="s">disponible</span></div>';
+          }
+        });
+        html+='</div></div>';
+      });
+    });
+    html+='<div class="sys-note" style="margin-top:6px">Esquema por manzanas en orden de numeración — no representa la geometría real del plano. Solo aparecen lotes con comprador o marcados como disponibles; el resto de la nomenclatura queda por confirmar contra el plano oficial.'+(sinLote.length?' <b>Compradores con lote por definir ('+sinLote.length+'):</b> '+sinLote.join(" · ")+'.':'')+'</div>';
+    el.innerHTML=html;
+  }
+  function mapaCotizar(code){
+    try{
+      showTab("cotizaciones");
+      if(typeof renderCotizaciones==="function") renderCotizaciones();
+      setTimeout(function(){
+        var q=document.getElementById("q_lote"); if(q){ q.value=code; }
+        try{ var ar=lotArea(code); if(ar>0){ var qa=document.getElementById("q_area"); if(qa) qa.value=(+ar).toLocaleString("es-CO"); } }catch(_){}
+        try{ renderQuotePreview&&renderQuotePreview(); }catch(_){}
+        try{ if(typeof renderQuote==="function") renderQuote(); }catch(_){}
+        var qq=document.getElementById("q_lote"); if(qq) qq.scrollIntoView({behavior:"smooth",block:"center"});
+      },250);
+    }catch(_){}
+  }
+  var _r=window.render;
+  if(typeof _r==="function"){
+    window.render=function(){ var out=_r.apply(this,arguments); try{ renderMapa(); }catch(e){ console.warn("mapa:",e);} return out; };
+  }
+  var _t=0,_iv=setInterval(function(){ _t++;
+    if(typeof DB!=="undefined"&&DB&&DB.buyers&&DB.buyers.length&&document.getElementById("mapa_body")){
+      clearInterval(_iv); renderMapa();
+    } else if(_t>30) clearInterval(_iv);
+  },1200);
+  window.renderMapa=renderMapa;
+  window.mapaCotizar=mapaCotizar;
 })();
 </script>
