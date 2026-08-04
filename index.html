@@ -6723,7 +6723,7 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
 
 <script>
 /* ============================================================
-   Add-on v11: Carta de cobro (individual y masiva)
+   Add-on v11.2: Cartas de cobro — PDFs individuales + ZIP masivo
    ============================================================ */
 (function(){
   "use strict";
@@ -6749,6 +6749,24 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     return {rows:rows,venc:venc,interes:intT,total:venc+intT};
   }
 
+  var CSS='.slc{width:794px;background:#fff;padding:52px 58px 40px;font-family:"Montserrat",system-ui,sans-serif;font-size:12.6px;line-height:1.62;color:#20293a;text-align:justify;box-sizing:border-box}'+
+  '.slc .hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:10px;margin-bottom:20px}'+
+  '.slc .hd img{height:44px}.slc .ct{font-size:11px;color:#5b6573}'+
+  '.slc .dest{margin-bottom:15px;line-height:1.5}'+
+  '.slc .ref{font-size:12px;margin-bottom:15px;padding:9px 15px;background:#f4f6f9;border-left:3px solid #c98a2f;border-radius:0 6px 6px 0}'+
+  '.slc p{margin:0 0 11px}'+
+  '.slc table{width:100%;border-collapse:collapse;font-size:11px;margin:7px 0 12px}'+
+  '.slc th{text-align:left;font-size:9px;letter-spacing:.7px;text-transform:uppercase;color:#5b6573;border-bottom:1.6px solid #1A3352;padding:5px 8px}'+
+  '.slc th.r{text-align:right}.slc td{padding:5.5px 8px;border-bottom:1px solid #edf0f5}'+
+  '.slc .r{text-align:right;font-variant-numeric:tabular-nums}'+
+  '.slc .pp{font-size:9.3px;color:#b7791f}'+
+  '.slc tr.tot td{border-top:1.8px solid #1A3352;border-bottom:none;padding-top:7px}'+
+  '.slc .callout{background:#fdf6e7;border:1px solid #e5c884;border-radius:9px;padding:13px 18px;margin:5px 0 13px;font-size:13.4px;text-align:center}'+
+  '.slc .callout span{display:block;font-size:10.3px;color:#7a5b1e;margin-top:2px}'+
+  '.slc .datos{background:#f4f6f9;border-radius:8px;padding:11px 16px;font-size:11.3px}'+
+  '.slc .firma{margin-top:26px;line-height:1.5}'+
+  '.slc .pfoot{margin-top:28px;padding-top:9px;border-top:1px solid #dfe4ec;text-align:center;font-size:8.6px;letter-spacing:.5px;color:#6b7686}';
+
   function cartaInner(b, hoy){
     var mo=morosidad(b);
     var ab=abonado(b), pct=(+b.total>0)?(ab/b.total*100):0;
@@ -6758,8 +6776,7 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
       var d=new Date(r.date+"T12:00");
       return '<tr><td>'+fLar(d)+'</td><td>'+r.label+(r.parcial?' <span class="pp">(saldo parcial)</span>':'')+'</td><td class="r">'+m$(r.monto)+'</td><td class="r">'+r.dias+'</td><td class="r">'+(r.interes>1?m$(r.interes):"—")+'</td></tr>';
     }).join("");
-    return '<div class="carta">'+
-    '<div class="hd"><img src="'+slA("logo-navy.png")+'"><div class="ct">Valledupar, '+fLar(hoy)+'</div></div>'+
+    return '<div class="hd"><img src="'+slA("logo-navy.png")+'"><div class="ct">Valledupar, '+fLar(hoy)+'</div></div>'+
     '<div class="dest">Señor(a)<br><b>'+b.name+'</b><br>Comprador(a) · Lote '+(b.lote||"—")+'<br>Sierraluna Club Residencial</div>'+
     '<div class="ref"><b>Ref.:</b> Estado de su cartera e invitación a normalizar su cuenta — Lote '+(b.lote||"—")+'</div>'+
     '<p>Reciba un cordial saludo de todo el equipo de Sierraluna. Le escribimos para compartirle el estado actualizado de su cuenta y, ante todo, para agradecerle nuevamente la confianza que ha depositado en este proyecto, que sigue avanzando para usted y su familia.</p>'+
@@ -6771,48 +6788,96 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     '<p>Lo invitamos a ponerse al día dentro de los próximos <b>diez (10) días calendario</b>, es decir, a más tardar el <b>'+fLar(lim)+'</b>. Y si está atravesando alguna circunstancia particular que se lo dificulte, por favor escríbanos: preferimos siempre conversar y construir juntos una alternativa de pago, antes que permitir que se afecte la buena relación que hemos venido cultivando.</p>'+
     '<p class="datos"><b>Datos para su pago:</b> Cuenta de Ahorros Bancolombia N.º 523-000043-32 · Titular: Sierraluna Group S.A.S. (NIT 901.814.712-8). Una vez realizado, envíe el comprobante a <b>info@sierraluna.co</b> para aplicarlo de inmediato a su cuenta.</p>'+
     '<p>Gracias por su atención. Esperamos seguir contando con usted en esta comunidad que crece cada día.</p>'+
-    '<div class="firma">Cordialmente,<br><br><br><b>MAURICIO GUTIÉRREZ DANGOND</b><br>Representante Legal · Sierraluna Group S.A.S.<br>info@sierraluna.co</div>'+
-    '</div>';
+    '<div class="firma">Cordialmente,<br><br><b>EQUIPO SIERRALUNA</b><br>Gestión de Cartera · Sierraluna Group S.A.S.<br>info@sierraluna.co</div>'+
+    '<div class="pfoot">SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OF. 201, VALLEDUPAR · INFO@SIERRALUNA.CO</div>';
   }
 
-  function cartaDoc(inners, titulo){
-    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>'+titulo+'</title>'+
-    '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
-    '<style>'+
-    '@page{size:A4;margin:14mm 16mm 16mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:"SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OF. 201, VALLEDUPAR · INFO@SIERRALUNA.CO";font-family:\"Montserrat\",sans-serif;font-size:6.6px;letter-spacing:.5px;color:#6b7686}@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:\"Montserrat\",sans-serif;font-size:7.5px;color:#6b7686}}'+
-    '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:9.8px;line-height:1.62;color:#20293a;text-align:justify}'+
-    '.carta{page-break-after:always}.carta:last-child{page-break-after:auto}'+
-    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:8px;margin-bottom:16px}'+
-    '.hd img{height:36px}.ct{font-size:9px;color:#5b6573}'+
-    '.dest{margin-bottom:12px;line-height:1.5}'+
-    '.ref{font-size:9.5px;margin-bottom:12px;padding:7px 12px;background:#f4f6f9;border-left:3px solid #c98a2f;border-radius:0 6px 6px 0}'+
-    'p{margin:0 0 9px;orphans:3;widows:3}'+
-    'table{width:100%;border-collapse:collapse;font-size:8.8px;margin:6px 0 10px}'+
-    'th{text-align:left;font-size:7.3px;letter-spacing:.7px;text-transform:uppercase;color:#5b6573;border-bottom:1.4px solid #1A3352;padding:4px 7px}'+
-    'th.r{text-align:right}td{padding:4.5px 7px;border-bottom:1px solid #edf0f5}'+
-    '.r{text-align:right;font-variant-numeric:tabular-nums}'+
-    '.pp{font-size:7.5px;color:#b7791f}'+
-    'tr.tot td{border-top:1.6px solid #1A3352;border-bottom:none;padding-top:6px}'+
-    '.callout{background:#fdf6e7;border:1px solid #e5c884;border-radius:9px;padding:11px 15px;margin:4px 0 11px;font-size:10.5px;text-align:center}'+
-    '.callout span{display:block;font-size:8.3px;color:#7a5b1e;margin-top:2px}'+
-    '.datos{background:#f4f6f9;border-radius:8px;padding:9px 13px;font-size:9px}'+
-    '.firma{margin-top:22px;line-height:1.5;break-inside:avoid;page-break-inside:avoid}'+
-    '</style></head><body>'+inners+'</body></html>';
+  /* ---------- infraestructura PDF ---------- */
+  var libsP=null;
+  function loadLibs(){
+    if(libsP) return libsP;
+    libsP=new Promise(function(res,rej){
+      var need=[];
+      if(typeof html2canvas==="undefined") need.push("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+      if(typeof window.jspdf==="undefined") need.push("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      if(typeof JSZip==="undefined") need.push("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+      if(!need.length) return res();
+      var left=need.length;
+      need.forEach(function(u){
+        var s=document.createElement("script"); s.src=u;
+        s.onload=function(){ if(--left===0) res(); };
+        s.onerror=function(){ rej(new Error("No se pudo cargar "+u)); };
+        document.head.appendChild(s);
+      });
+    });
+    return libsP;
+  }
+  function busy(msg){
+    var o=document.getElementById("slc_busy");
+    if(!o){
+      o=document.createElement("div"); o.id="slc_busy";
+      o.style.cssText="position:fixed;inset:0;background:rgba(12,20,33,.6);z-index:990;display:flex;align-items:center;justify-content:center";
+      o.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px 30px;font-family:inherit;font-size:14px;font-weight:700;color:#1A3352;box-shadow:0 20px 60px rgba(0,0,0,.35);max-width:80vw;text-align:center" id="slc_busy_t"></div>';
+      document.body.appendChild(o);
+    }
+    o.style.display="flex";
+    document.getElementById("slc_busy_t").innerHTML=msg;
+  }
+  function unbusy(){ var o=document.getElementById("slc_busy"); if(o) o.style.display="none"; }
+  function nodeFor(b, hoy){
+    var wrap=document.createElement("div");
+    wrap.style.cssText="position:fixed;top:0;left:0;z-index:989;background:#fff";
+    wrap.innerHTML='<style>'+CSS+'</style><div class="slc">'+cartaInner(b,hoy)+'</div>';
+    document.body.appendChild(wrap);
+    return wrap;
+  }
+  function pdfBlob(b, hoy){
+    var wrap=nodeFor(b,hoy);
+    var el=wrap.querySelector(".slc");
+    return html2canvas(el,{scale:2,useCORS:true,logging:false,backgroundColor:"#ffffff"}).then(function(canvas){
+      wrap.remove();
+      var jsPDF=window.jspdf.jsPDF;
+      var pdf=new jsPDF("p","mm","a4");
+      var img=canvas.toDataURL("image/jpeg",0.93);
+      var iw=190;                                   // 210mm - márgenes de 10mm
+      var ih=canvas.height*iw/canvas.width;
+      var avail=277;                                // 297mm - 2×10mm
+      var heightLeft=ih, position=10;
+      pdf.addImage(img,"JPEG",10,position,iw,ih);
+      heightLeft-=avail;
+      while(heightLeft>0){
+        position=heightLeft-ih+10;
+        pdf.addPage();
+        pdf.addImage(img,"JPEG",10,position,iw,ih);
+        heightLeft-=avail;
+      }
+      return pdf.output("blob");
+    }).catch(function(e){ try{wrap.remove();}catch(_){} throw e; });
+  }
+  function fname(b){
+    var n=((b.code||"")+" "+(b.name||"")).trim().replace(/[\\/:*?"<>|]+/g,"").replace(/\s+/g," ");
+    return "Carta de cobro - "+n+".pdf";
+  }
+  function dl(blob, name){
+    var a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
   }
 
+  /* ---------- acciones ---------- */
   function printCarta(id){
     var b=(DB.buyers||[]).find(function(x){return x.id===id;});
     if(!b){ var sel=document.getElementById("ec_buyer"); if(sel&&sel.value) b=(DB.buyers||[]).find(function(x){return x.id===sel.value;}); }
     if(!b){ alert("Elige el comprador (en el selector de Estado de cuenta) para generar su carta."); return; }
     var mo=morosidad(b);
     if(!(mo.venc>1)){ alert(b.name+" está al día — no hay cartera vencida para cobrar. 🎉"); return; }
-    var win=window.open("","_blank","width=940,height=1150");
-    if(!win){ alert("Permite las ventanas emergentes."); return; }
-    win.document.write(cartaDoc(cartaInner(b,new Date()),"Carta de cobro - "+b.name));
-    win.document.close();
-    win.onload=function(){ setTimeout(function(){ try{win.focus();win.print();}catch(_){}},500); };
-    try{ if(window.slAudit) slAudit({action:"Carta de cobro generada",detail:(b.code||"")+" "+b.name+" · "+m$(mo.total)}); }catch(_){}
+    busy("Generando la carta de <b>"+b.name+"</b>…");
+    loadLibs().then(function(){ return pdfBlob(b,new Date()); }).then(function(blob){
+      dl(blob, fname(b)); unbusy();
+      try{ if(window.slAudit) slAudit({action:"Carta de cobro generada",detail:(b.code||"")+" "+b.name+" · "+m$(mo.total)}); }catch(_){}
+      if(window.save) save();
+    }).catch(function(e){ unbusy(); alert("No se pudo generar el PDF: "+e.message); });
   }
 
   function printCartasMora(){
@@ -6820,13 +6885,29 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     var morosos=(DB.buyers||[]).filter(function(b){return b.code!=="PD"&&+b.total>0&&morosidad(b).venc>1;})
       .sort(function(a,b){return (a.code||"zzz").localeCompare(b.code||"zzz");});
     if(!morosos.length){ alert("No hay compradores en mora. 🎉"); return; }
-    if(!confirm("Se generará un solo PDF con "+morosos.length+" cartas de cobro (una por comprador). ¿Continuar?")) return;
-    var win=window.open("","_blank","width=940,height=1150");
-    if(!win){ alert("Permite las ventanas emergentes."); return; }
-    win.document.write(cartaDoc(morosos.map(function(b){return cartaInner(b,hoy);}).join(""),"Cartas de cobro - "+morosos.length+" compradores"));
-    win.document.close();
-    win.onload=function(){ setTimeout(function(){ try{win.focus();win.print();}catch(_){}},700); };
-    try{ if(window.slAudit) slAudit({action:"Cartas de cobro masivas",detail:morosos.length+" compradores en mora"}); }catch(_){}
+    if(!confirm("Se generará un archivo ZIP con "+morosos.length+" cartas de cobro en PDF, una por comprador, con su nombre en el archivo. Puede tardar un minuto. ¿Continuar?")) return;
+    loadLibs().then(function(){
+      var zip=new JSZip();
+      var i=0;
+      function next(){
+        if(i>=morosos.length){
+          busy("Empaquetando el ZIP…");
+          return zip.generateAsync({type:"blob",compression:"DEFLATE"}).then(function(blob){
+            dl(blob, "Cartas de cobro Sierraluna "+hoyISO()+".zip");
+            unbusy();
+            try{ if(window.slAudit) slAudit({action:"Cartas de cobro masivas (ZIP)",detail:morosos.length+" PDFs individuales"}); }catch(_){}
+            if(window.save) save();
+          });
+        }
+        var b=morosos[i];
+        busy("Generando carta "+(i+1)+" de "+morosos.length+"<br><span style='font-weight:500;font-size:12px'>"+b.name+"</span>");
+        return pdfBlob(b,hoy).then(function(blob){
+          zip.file(fname(b), blob);
+          i++; return next();
+        });
+      }
+      return next();
+    }).catch(function(e){ unbusy(); alert("Error generando el ZIP: "+e.message); });
   }
 
   window.printCarta=printCarta;
