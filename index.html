@@ -795,6 +795,8 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <select id="ec_buyer" style="flex:1;min-width:260px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff"><option value="">— Elige el comprador —</option></select>
         <button class="btn-gold" onclick="printStatement()">Generar estado de cuenta</button>
+        <button class="btn-sys" onclick="printCarta()">✉ Carta de cobro</button>
+        <button class="btn-sys" onclick="printCartasMora()">✉ Cartas a todos los morosos</button>
       </div>
       <h4 style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:20px 0 10px">Recordatorios enviados</h4>
       <div id="rem_log"></div>
@@ -6300,6 +6302,7 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     var tel=(b.tel||"").replace(/\D/g,"");
     document.getElementById("f360_acts").innerHTML=
       '<button class="ab gold" onclick="printStatement(\''+b.id+'\')">⎙ Estado de cuenta</button>'+
+      (venc>1?'<button class="ab" onclick="printCarta(\''+b.id+'\')">✉ Carta de cobro</button>':"")+
       '<button class="ab" onclick="try{copyReminder(\''+b.id+'\',this)}catch(_){}">Copiar recordatorio</button>'+
       (tel?'<a class="ab" style="text-decoration:none" target="_blank" href="https://wa.me/57'+tel+'">WhatsApp</a>':"")+
       (b.promesaUrl?'<a class="ab" style="text-decoration:none" target="_blank" href="'+b.promesaUrl+'">Carpeta Drive ↗</a>':"");
@@ -6715,5 +6718,118 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   },1200);
   window.renderMapa=renderMapa;
   window.mapaCotizar=mapaCotizar;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v11: Carta de cobro (individual y masiva)
+   ============================================================ */
+(function(){
+  "use strict";
+  function m$(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  var MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fLar(d){ return d.getDate()+" de "+MESN[d.getMonth()]+" de "+d.getFullYear(); }
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function usuraEA(){ var v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0; }
+
+  function morosidad(b){
+    var hoy=hoyISO(), paid=abonado(b), cum=0, rows=[], venc=0, intT=0, ea=usuraEA();
+    (b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;})
+      .forEach(function(c){
+        var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0,Math.min(amt,cum-paid));
+        if(unc>1&&c.date<=hoy){
+          var dias=Math.round((new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5);
+          var it=ea>0? unc*(Math.pow(1+ea/100,dias/365)-1) : 0;
+          rows.push({date:c.date,label:c.label||"Cuota",monto:unc,dias:dias,interes:it,parcial:unc<amt-1});
+          venc+=unc; intT+=it;
+        }
+      });
+    return {rows:rows,venc:venc,interes:intT,total:venc+intT};
+  }
+
+  function cartaInner(b, hoy){
+    var mo=morosidad(b);
+    var ab=abonado(b), pct=(+b.total>0)?(ab/b.total*100):0;
+    var ea=usuraEA();
+    var lim=new Date(hoy.getTime()+10*864e5);
+    var trs=mo.rows.map(function(r){
+      var d=new Date(r.date+"T12:00");
+      return '<tr><td>'+fLar(d)+'</td><td>'+r.label+(r.parcial?' <span class="pp">(saldo parcial)</span>':'')+'</td><td class="r">'+m$(r.monto)+'</td><td class="r">'+r.dias+'</td><td class="r">'+(r.interes>1?m$(r.interes):"—")+'</td></tr>';
+    }).join("");
+    return '<div class="carta">'+
+    '<div class="hd"><img src="'+slA("logo-navy.png")+'"><div class="ct">Valledupar, '+fLar(hoy)+'</div></div>'+
+    '<div class="dest">Señor(a)<br><b>'+b.name+'</b><br>Comprador(a) · Lote '+(b.lote||"—")+'<br>Sierraluna Club Residencial</div>'+
+    '<div class="ref"><b>Ref.:</b> Estado de su cartera e invitación a normalizar su cuenta — Lote '+(b.lote||"—")+'</div>'+
+    '<p>Reciba un cordial saludo de todo el equipo de Sierraluna. Le escribimos para compartirle el estado actualizado de su cuenta y, ante todo, para agradecerle nuevamente la confianza que ha depositado en este proyecto, que sigue avanzando para usted y su familia.</p>'+
+    '<p>A la fecha, sus abonos suman <b>'+m$(ab)+'</b>, equivalentes al <b>'+pct.toFixed(1)+'%</b> del valor de su inmueble. Valoramos sinceramente ese esfuerzo. Al hacer el corte del día de hoy, sin embargo, encontramos las siguientes cuotas pendientes de pago:</p>'+
+    '<table><thead><tr><th>Vencimiento</th><th>Concepto</th><th class="r">Valor pendiente</th><th class="r">Días de mora</th><th class="r">Interés causado</th></tr></thead><tbody>'+trs+
+    '<tr class="tot"><td colspan="2"><b>Totales</b></td><td class="r"><b>'+m$(mo.venc)+'</b></td><td></td><td class="r"><b>'+(mo.interes>1?m$(mo.interes):"—")+'</b></td></tr></tbody></table>'+
+    (ea>0?'<p>De acuerdo con lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la <b>tasa máxima legal vigente</b> ('+ea+'% efectivo anual, certificada mensualmente por la Superintendencia Financiera). El interés causado se calcula día a día, de modo que la liquidación definitiva se hará en la fecha efectiva de su pago.</p>':'')+
+    '<div class="callout">Valor para normalizar su cuenta al corte de hoy: <b>'+m$(mo.total)+'</b><span>('+m$(mo.venc)+' de capital vencido'+(mo.interes>1?' + '+m$(mo.interes)+' de intereses de mora':'')+')</span></div>'+
+    '<p>Lo invitamos a ponerse al día dentro de los próximos <b>diez (10) días calendario</b>, es decir, a más tardar el <b>'+fLar(lim)+'</b>. Y si está atravesando alguna circunstancia particular que se lo dificulte, por favor escríbanos: preferimos siempre conversar y construir juntos una alternativa de pago, antes que permitir que se afecte la buena relación que hemos venido cultivando.</p>'+
+    '<p class="datos"><b>Datos para su pago:</b> Cuenta de Ahorros Bancolombia N.º 523-000043-32 · Titular: Sierraluna Group S.A.S. (NIT 901.814.712-8). Una vez realizado, envíe el comprobante a <b>info@sierraluna.co</b> para aplicarlo de inmediato a su cuenta.</p>'+
+    '<p>Gracias por su atención. Esperamos seguir contando con usted en esta comunidad que crece cada día.</p>'+
+    '<div class="firma">Cordialmente,<br><br><br><b>MAURICIO GUTIÉRREZ DANGOND</b><br>Representante Legal · Sierraluna Group S.A.S.<br>info@sierraluna.co</div>'+
+    '</div>';
+  }
+
+  function cartaDoc(inners, titulo){
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>'+titulo+'</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
+    '<style>'+
+    '@page{size:A4;margin:14mm 16mm 16mm;@top-left{content:""}@top-center{content:""}@top-right{content:""}@bottom-left{content:""}@bottom-center{content:"SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OF. 201, VALLEDUPAR · INFO@SIERRALUNA.CO";font-family:\"Montserrat\",sans-serif;font-size:6.6px;letter-spacing:.5px;color:#6b7686}@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:\"Montserrat\",sans-serif;font-size:7.5px;color:#6b7686}}'+
+    '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    'body{font-family:"Montserrat",system-ui,sans-serif;font-size:9.8px;line-height:1.62;color:#20293a;text-align:justify}'+
+    '.carta{page-break-after:always}.carta:last-child{page-break-after:auto}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1A3352;padding-bottom:8px;margin-bottom:16px}'+
+    '.hd img{height:36px}.ct{font-size:9px;color:#5b6573}'+
+    '.dest{margin-bottom:12px;line-height:1.5}'+
+    '.ref{font-size:9.5px;margin-bottom:12px;padding:7px 12px;background:#f4f6f9;border-left:3px solid #c98a2f;border-radius:0 6px 6px 0}'+
+    'p{margin:0 0 9px;orphans:3;widows:3}'+
+    'table{width:100%;border-collapse:collapse;font-size:8.8px;margin:6px 0 10px}'+
+    'th{text-align:left;font-size:7.3px;letter-spacing:.7px;text-transform:uppercase;color:#5b6573;border-bottom:1.4px solid #1A3352;padding:4px 7px}'+
+    'th.r{text-align:right}td{padding:4.5px 7px;border-bottom:1px solid #edf0f5}'+
+    '.r{text-align:right;font-variant-numeric:tabular-nums}'+
+    '.pp{font-size:7.5px;color:#b7791f}'+
+    'tr.tot td{border-top:1.6px solid #1A3352;border-bottom:none;padding-top:6px}'+
+    '.callout{background:#fdf6e7;border:1px solid #e5c884;border-radius:9px;padding:11px 15px;margin:4px 0 11px;font-size:10.5px;text-align:center}'+
+    '.callout span{display:block;font-size:8.3px;color:#7a5b1e;margin-top:2px}'+
+    '.datos{background:#f4f6f9;border-radius:8px;padding:9px 13px;font-size:9px}'+
+    '.firma{margin-top:22px;line-height:1.5;break-inside:avoid;page-break-inside:avoid}'+
+    '</style></head><body>'+inners+'</body></html>';
+  }
+
+  function printCarta(id){
+    var b=(DB.buyers||[]).find(function(x){return x.id===id;});
+    if(!b){ var sel=document.getElementById("ec_buyer"); if(sel&&sel.value) b=(DB.buyers||[]).find(function(x){return x.id===sel.value;}); }
+    if(!b){ alert("Elige el comprador (en el selector de Estado de cuenta) para generar su carta."); return; }
+    var mo=morosidad(b);
+    if(!(mo.venc>1)){ alert(b.name+" está al día — no hay cartera vencida para cobrar. 🎉"); return; }
+    var win=window.open("","_blank","width=940,height=1150");
+    if(!win){ alert("Permite las ventanas emergentes."); return; }
+    win.document.write(cartaDoc(cartaInner(b,new Date()),"Carta de cobro - "+b.name));
+    win.document.close();
+    win.onload=function(){ setTimeout(function(){ try{win.focus();win.print();}catch(_){}},500); };
+    try{ if(window.slAudit) slAudit({action:"Carta de cobro generada",detail:(b.code||"")+" "+b.name+" · "+m$(mo.total)}); }catch(_){}
+  }
+
+  function printCartasMora(){
+    var hoy=new Date();
+    var morosos=(DB.buyers||[]).filter(function(b){return b.code!=="PD"&&+b.total>0&&morosidad(b).venc>1;})
+      .sort(function(a,b){return (a.code||"zzz").localeCompare(b.code||"zzz");});
+    if(!morosos.length){ alert("No hay compradores en mora. 🎉"); return; }
+    if(!confirm("Se generará un solo PDF con "+morosos.length+" cartas de cobro (una por comprador). ¿Continuar?")) return;
+    var win=window.open("","_blank","width=940,height=1150");
+    if(!win){ alert("Permite las ventanas emergentes."); return; }
+    win.document.write(cartaDoc(morosos.map(function(b){return cartaInner(b,hoy);}).join(""),"Cartas de cobro - "+morosos.length+" compradores"));
+    win.document.close();
+    win.onload=function(){ setTimeout(function(){ try{win.focus();win.print();}catch(_){}},700); };
+    try{ if(window.slAudit) slAudit({action:"Cartas de cobro masivas",detail:morosos.length+" compradores en mora"}); }catch(_){}
+  }
+
+  window.printCarta=printCarta;
+  window.printCartasMora=printCartasMora;
 })();
 </script>
