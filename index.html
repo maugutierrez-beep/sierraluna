@@ -824,7 +824,11 @@
   <div class="panel" data-section="movimientos">
     <div class="panel-h">
       <div><h2>Movimientos</h2><div class="desc">Todas las transacciones registradas, una por fila. Compara con tu extracto bancario.</div></div>
-      <button class="btn-gold" onclick="openPayment()">+ Registrar</button>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn-sys" onclick="exportMovs('xlsx')">⬇ Excel</button>
+        <button class="btn-sys" onclick="exportMovs('pdf')">⬇ PDF</button>
+        <button class="btn-gold" onclick="openPayment()">+ Registrar</button>
+      </div>
     </div>
     <!-- Filter bar -->
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 0 14px">
@@ -837,6 +841,12 @@
         <button class="mpill" onclick="setMovPeriod('2025')">2025</button>
         <button class="mpill" onclick="setMovPeriod('month')">Este mes</button>
       </div>
+      <select id="mov_chan" onchange="movFilter.chan=this.value;movFilter.limit=40;renderMovimientos()"
+        style="padding:8px 11px;border:1px solid var(--line);border-radius:9px;font-family:'Montserrat';font-size:12.5px;background:var(--bg2);color:var(--ink)">
+        <option value="">Todos los canales</option>
+        <option value="Online">Solo Online (banco)</option>
+        <option value="Offline">Solo Offline (directo)</option>
+      </select>
     </div>
     <div class="inv-summary" id="mov_summary"></div>
     <div id="movbody"></div>
@@ -2702,7 +2712,7 @@ function clearPlan(){
 }
 
 /* ---- Movimientos ---- */
-let movFilter={q:'',period:'all',limit:40};
+let movFilter={q:'',period:'all',limit:40,chan:''};
 let editMovBuyerId=null, editMovIdx=null;
 
 function setMovPeriod(p){
@@ -2728,6 +2738,7 @@ function renderMovimientos(){
   if(movFilter.period==='month') f=f.filter(m=>m.date>=tod.slice(0,7)+'-01');
   else if(movFilter.period==='2026') f=f.filter(m=>m.date>='2026-01-01');
   else if(movFilter.period==='2025') f=f.filter(m=>m.date>='2025-01-01'&&m.date<'2026-01-01');
+  if(movFilter.chan) f=f.filter(m=>(m.chan||'Online')===movFilter.chan);
   f.sort((a,b)=>a.date<b.date?1:-1);
   // Summary with online/offline split for bank reconciliation
   const totOnline=f.filter(m=>m.chan!=='Offline').reduce((s,m)=>s+m.amount,0);
@@ -6912,5 +6923,159 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
 
   window.printCarta=printCarta;
   window.printCartasMora=printCartasMora;
+})();
+</script>
+
+<script>
+/* ============================================================
+   Add-on v12: Exportar movimientos a Excel (.xlsx) y PDF
+   ============================================================ */
+(function(){
+  "use strict";
+  var MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fm(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function fLar(d){ return d.getDate()+" de "+MESN[d.getMonth()]+" de "+d.getFullYear(); }
+  function fCorta(iso){ if(!iso) return ""; var p=iso.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+
+  function libs(urls){
+    return Promise.all(urls.map(function(u){
+      return new Promise(function(res,rej){
+        var s=document.createElement("script"); s.src=u.url;
+        s.onload=res; s.onerror=function(){rej(new Error("No se pudo cargar "+u.name));};
+        if(u.test()) return res();
+        document.head.appendChild(s);
+      });
+    }));
+  }
+  function busy(msg){
+    var o=document.getElementById("mvx_busy");
+    if(!o){ o=document.createElement("div"); o.id="mvx_busy";
+      o.style.cssText="position:fixed;inset:0;background:rgba(12,20,33,.55);z-index:995;display:flex;align-items:center;justify-content:center";
+      o.innerHTML='<div id="mvx_t" style="background:#fff;border-radius:14px;padding:20px 28px;font-family:inherit;font-size:14px;font-weight:700;color:#1A3352;box-shadow:0 20px 60px rgba(0,0,0,.35)"></div>';
+      document.body.appendChild(o); }
+    o.style.display="flex"; document.getElementById("mvx_t").textContent=msg;
+  }
+  function unbusy(){ var o=document.getElementById("mvx_busy"); if(o) o.style.display="none"; }
+
+  /* Recolecta los movimientos aplicando EXACTAMENTE los filtros activos en pantalla */
+  function datos(){
+    var moves=[];
+    (DB.buyers||[]).forEach(function(b){
+      (b.payments||[]).forEach(function(p){
+        moves.push({code:b.code||"",name:b.name||"",lote:b.lote||"",
+          date:p.date||"",amount:+p.amount||0,note:p.note||"",
+          chan:p.chan||"Online",recibo:(p.recibo!=null&&p.recibo!=="")?p.recibo:""});
+      });
+    });
+    var f=moves, q=(movFilter.q||"").toLowerCase();
+    if(q) f=f.filter(function(m){return m.name.toLowerCase().indexOf(q)>=0||m.note.toLowerCase().indexOf(q)>=0||m.code.toLowerCase().indexOf(q)>=0;});
+    var tod=hoyISO();
+    if(movFilter.period==="month") f=f.filter(function(m){return m.date>=tod.slice(0,7)+"-01";});
+    else if(movFilter.period==="2026") f=f.filter(function(m){return m.date>="2026-01-01";});
+    else if(movFilter.period==="2025") f=f.filter(function(m){return m.date>="2025-01-01"&&m.date<"2026-01-01";});
+    if(movFilter.chan) f=f.filter(function(m){return (m.chan||"Online")===movFilter.chan;});
+    f.sort(function(a,b){return a.date<b.date?1:-1;});
+    return f;
+  }
+  function etiqueta(){
+    var p={all:"histórico completo",month:"mes en curso","2026":"año 2026","2025":"año 2025"}[movFilter.period]||"histórico";
+    var c=movFilter.chan?(" · solo "+movFilter.chan):"";
+    var q=(movFilter.q||"").trim()?(' · filtro "'+movFilter.q.trim()+'"'):"";
+    return p+c+q;
+  }
+  function sufijo(){
+    var p={all:"historico",month:"mes-actual","2026":"2026","2025":"2025"}[movFilter.period]||"historico";
+    return p+(movFilter.chan?("-"+movFilter.chan.toLowerCase()):"");
+  }
+
+  function exportXLSX(){
+    var f=datos();
+    if(!f.length){ alert("No hay movimientos con los filtros actuales."); return; }
+    busy("Generando el archivo de Excel…");
+    libs([{name:"SheetJS",url:"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",test:function(){return typeof XLSX!=="undefined";}}]).then(function(){
+      var aoa=[["Fecha","Recibo","Código","Comprador","Lote","Concepto","Canal","Valor"]];
+      f.forEach(function(m){
+        aoa.push([m.date?new Date(m.date+"T12:00"):"", m.recibo, m.code, m.name, m.lote, m.note||"Abono", m.chan, m.amount]);
+      });
+      var tot=f.reduce(function(a,m){return a+m.amount;},0);
+      var on=f.filter(function(m){return m.chan==="Online";}).reduce(function(a,m){return a+m.amount;},0);
+      aoa.push([]);
+      aoa.push(["","","","","","","TOTAL",tot]);
+      aoa.push(["","","","","","","Online",on]);
+      aoa.push(["","","","","","","Offline",tot-on]);
+      var ws=XLSX.utils.aoa_to_sheet(aoa,{cellDates:true});
+      ws["!cols"]=[{wch:11},{wch:8},{wch:7},{wch:38},{wch:8},{wch:42},{wch:9},{wch:16}];
+      ws["!freeze"]={xSplit:0,ySplit:1};
+      ws["!autofilter"]={ref:"A1:H"+(f.length+1)};
+      var R=XLSX.utils.decode_range(ws["!ref"]);
+      for(var r=1;r<=R.e.r;r++){
+        var cD=ws[XLSX.utils.encode_cell({r:r,c:0})]; if(cD&&cD.t==="d") cD.z="dd/mm/yyyy";
+        var cV=ws[XLSX.utils.encode_cell({r:r,c:7})]; if(cV&&typeof cV.v==="number") cV.z='"$"#,##0';
+      }
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb,ws,"Movimientos");
+      XLSX.writeFile(wb,"Movimientos Sierraluna "+sufijo()+" "+hoyISO()+".xlsx");
+      unbusy();
+      try{ if(window.slAudit) slAudit({action:"Movimientos exportados a Excel",detail:f.length+" registros · "+etiqueta()}); }catch(_){}
+      if(window.save) save();
+    }).catch(function(e){ unbusy(); alert("No se pudo generar el Excel: "+e.message); });
+  }
+
+  function exportPDF(){
+    var f=datos();
+    if(!f.length){ alert("No hay movimientos con los filtros actuales."); return; }
+    busy("Generando el PDF…");
+    libs([
+      {name:"jsPDF",url:"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",test:function(){return typeof window.jspdf!=="undefined";}},
+      {name:"AutoTable",url:"https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js",test:function(){return !!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable);}}
+    ]).then(function(){
+      var jsPDF=window.jspdf.jsPDF;
+      var doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+      var W=doc.internal.pageSize.getWidth(), Hh=doc.internal.pageSize.getHeight();
+      var tot=f.reduce(function(a,m){return a+m.amount;},0);
+      var on=f.filter(function(m){return m.chan==="Online";}).reduce(function(a,m){return a+m.amount;},0);
+      var logo=null; try{ var s=slA("logo-navy.png"); if(s.indexOf("data:")===0) logo=s; }catch(_){}
+      var body=f.map(function(m){ return [fCorta(m.date), String(m.recibo||"—"), m.code, m.name.slice(0,40), m.lote||"—", (m.note||"Abono").slice(0,46), m.chan, fm(m.amount)]; });
+      doc.autoTable({
+        head:[["Fecha","Recibo","Cód.","Comprador","Lote","Concepto","Canal","Valor"]],
+        body:body,
+        startY:32, margin:{top:32,left:12,right:12,bottom:16},
+        theme:"grid",
+        styles:{font:"helvetica",fontSize:7,cellPadding:1.6,lineColor:[223,228,236],lineWidth:0.1,textColor:[32,41,58]},
+        headStyles:{fillColor:[26,51,82],textColor:255,fontSize:6.6,fontStyle:"bold"},
+        alternateRowStyles:{fillColor:[238,241,246]},
+        columnStyles:{0:{cellWidth:16},1:{cellWidth:13,halign:"center"},2:{cellWidth:11},3:{cellWidth:62},4:{cellWidth:12},5:{cellWidth:78},6:{cellWidth:15,halign:"center"},7:{cellWidth:28,halign:"right"}},
+        didDrawPage:function(d){
+          if(logo){ try{ doc.addImage(logo,"PNG",12,10,32,8.6); }catch(_){ } }
+          doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(26,51,82);
+          doc.text("MOVIMIENTOS DE RECAUDO",W-12,14,{align:"right"});
+          doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(201,138,47);
+          doc.text("SIERRALUNA CLUB RESIDENCIAL · "+etiqueta().toUpperCase(),W-12,17.5,{align:"right"});
+          doc.setDrawColor(26,51,82); doc.setLineWidth(.5); doc.line(12,20,W-12,20);
+          doc.setFontSize(7.5); doc.setTextColor(32,41,58); doc.setFont("helvetica","normal");
+          doc.text(f.length+" movimientos · Total "+fm(tot)+"   (Online "+fm(on)+" · Offline "+fm(tot-on)+")",12,26);
+          doc.text("Corte: "+fLar(new Date()),W-12,26,{align:"right"});
+          doc.setDrawColor(223,228,236); doc.setLineWidth(.3); doc.line(12,Hh-11,W-12,Hh-11);
+          doc.setFontSize(5.8); doc.setTextColor(107,118,134);
+          doc.text("SIERRALUNA GROUP S.A.S. · NIT 901.814.712-8 · CALLE 11 # 11-07 OF. 201, VALLEDUPAR · INFO@SIERRALUNA.CO",W/2,Hh-7.5,{align:"center"});
+          doc.setFontSize(7);
+          doc.text("Página "+doc.internal.getNumberOfPages(),W-12,Hh-7.5,{align:"right"});
+        }
+      });
+      var y=doc.lastAutoTable.finalY+6;
+      if(y>Hh-24){ doc.addPage(); y=34; }
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(26,51,82);
+      doc.text("TOTAL DEL PERIODO: "+fm(tot),W-12,y,{align:"right"});
+      doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(91,101,115);
+      doc.text("Online (canal bancario): "+fm(on)+"     ·     Offline (recaudo directo): "+fm(tot-on),W-12,y+4.5,{align:"right"});
+      doc.save("Movimientos Sierraluna "+sufijo()+" "+hoyISO()+".pdf");
+      unbusy();
+      try{ if(window.slAudit) slAudit({action:"Movimientos exportados a PDF",detail:f.length+" registros · "+etiqueta()}); }catch(_){}
+      if(window.save) save();
+    }).catch(function(e){ unbusy(); alert("No se pudo generar el PDF: "+e.message); });
+  }
+
+  window.exportMovs=function(t){ if(t==="xlsx") exportXLSX(); else exportPDF(); };
 })();
 </script>
