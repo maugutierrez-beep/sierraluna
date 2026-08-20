@@ -7022,6 +7022,30 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     }).catch(function(e){ unbusy(); alert("No se pudo generar el Excel: "+e.message); });
   }
 
+  var LOGO_JPEG=null;
+  function prepLogo(){
+    return new Promise(function(res){
+      if(LOGO_JPEG!==null) return res(LOGO_JPEG);
+      var s;
+      try{ s=slA("logo-navy.png"); }catch(_){ return res(null); }
+      if(!s||s.indexOf("data:")!==0){ return res(null); }
+      var im=new Image();
+      im.onload=function(){
+        try{
+          var cv=document.createElement("canvas");
+          cv.width=im.naturalWidth; cv.height=im.naturalHeight;
+          var cx=cv.getContext("2d");
+          cx.fillStyle="#ffffff"; cx.fillRect(0,0,cv.width,cv.height);
+          cx.drawImage(im,0,0);
+          LOGO_JPEG=cv.toDataURL("image/jpeg",0.95);
+        }catch(_){ LOGO_JPEG=null; }
+        res(LOGO_JPEG);
+      };
+      im.onerror=function(){ res(null); };
+      im.src=s;
+    });
+  }
+
   function exportPDF(){
     var f=datos();
     if(!f.length){ alert("No hay movimientos con los filtros actuales."); return; }
@@ -7029,13 +7053,13 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     libs([
       {name:"jsPDF",url:"https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",test:function(){return typeof window.jspdf!=="undefined";}},
       {name:"AutoTable",url:"https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js",test:function(){return !!(window.jspdf&&window.jspdf.jsPDF&&window.jspdf.jsPDF.API&&window.jspdf.jsPDF.API.autoTable);}}
-    ]).then(function(){
+    ]).then(prepLogo).then(function(){
       var jsPDF=window.jspdf.jsPDF;
       var doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
       var W=doc.internal.pageSize.getWidth(), Hh=doc.internal.pageSize.getHeight();
       var tot=f.reduce(function(a,m){return a+m.amount;},0);
       var on=f.filter(function(m){return m.chan==="Online";}).reduce(function(a,m){return a+m.amount;},0);
-      var logo=null; try{ var s=slA("logo-navy.png"); if(s.indexOf("data:")===0) logo=s; }catch(_){}
+      var logo=LOGO_JPEG;
       var body=f.map(function(m){ return [fCorta(m.date), String(m.recibo||"—"), m.code, m.name.slice(0,40), m.lote||"—", (m.note||"Abono").slice(0,46), m.chan, fm(m.amount)]; });
       doc.autoTable({
         head:[["Fecha","Recibo","Cód.","Comprador","Lote","Concepto","Canal","Valor"]],
@@ -7047,7 +7071,7 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
         alternateRowStyles:{fillColor:[238,241,246]},
         columnStyles:{0:{cellWidth:16},1:{cellWidth:13,halign:"center"},2:{cellWidth:11},3:{cellWidth:62},4:{cellWidth:12},5:{cellWidth:78},6:{cellWidth:15,halign:"center"},7:{cellWidth:28,halign:"right"}},
         didDrawPage:function(d){
-          if(logo){ try{ doc.addImage(logo,"PNG",12,10,32,8.6); }catch(_){ } }
+          if(logo){ try{ doc.addImage(logo,"JPEG",12,10,32,8.6); }catch(_){ } }
           doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(26,51,82);
           doc.text("MOVIMIENTOS DE RECAUDO",W-12,14,{align:"right"});
           doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(201,138,47);
