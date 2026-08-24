@@ -803,6 +803,24 @@
     </div>
   </div>
 
+  <!-- Redactor de correo de recordatorio -->
+  <div class="panel" data-section="cobranza">
+    <div class="panel-h">
+      <div><h2>Correo de recordatorio</h2><div class="desc">Redacta un correo cordial con las cuotas pendientes del comprador. El tono se ajusta solo según su situación: aviso preventivo si aún no hay mora, o invitación a normalizar si ya la hay.</div></div>
+    </div>
+    <div style="padding:14px 18px 18px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select id="mail_buyer" onchange="buildMail()" style="flex:1;min-width:260px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff"><option value="">— Elige el comprador —</option></select>
+        <select id="mail_tone" onchange="buildMail()" style="padding:10px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;background:#fff">
+          <option value="auto">Tono automático</option>
+          <option value="prev">Aviso preventivo</option>
+          <option value="cobro">Invitación a normalizar</option>
+        </select>
+      </div>
+      <div id="mail_out" style="margin-top:14px"></div>
+    </div>
+  </div>
+
   <!-- Comportamiento de pago -->
   <div class="panel" data-section="cobranza">
     <div class="panel-h">
@@ -7101,5 +7119,207 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   }
 
   window.exportMovs=function(t){ if(t==="xlsx") exportXLSX(); else exportPDF(); };
+})();
+</script>
+
+<style>
+.mailcard{border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;background:#fff}
+.mailhd{background:#f6f8fb;border-bottom:1px solid var(--line-soft);padding:11px 15px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.mailhd .lb{font-size:8.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft)}
+.mailhd .vl{font-size:12.5px;font-weight:600;color:var(--navy);word-break:break-all}
+.mailbody{padding:15px 18px;font-size:12.6px;line-height:1.62;color:var(--ink);white-space:pre-wrap}
+.mailacts{display:flex;gap:8px;flex-wrap:wrap;padding:12px 15px;border-top:1px solid var(--line-soft);background:#f8f9fb}
+.mailacts .mb{all:unset;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;padding:9px 15px;border-radius:9px;background:#fff;border:1px solid var(--line);color:var(--navy);transition:.12s}
+.mailacts .mb:hover{background:#eef1f5}
+.mailacts .mb.gold{background:#c98a2f;border-color:#c98a2f;color:#fff}
+.mailacts .mb.gold:hover{background:#b57a25}
+.mailwarn{background:#fdf6e7;border:1px solid #e5c884;border-radius:9px;padding:10px 14px;font-size:12px;color:#7a5b1e;margin-bottom:12px}
+</style>
+
+<script>
+/* ============================================================
+   Add-on v13: Redactor de correo de recordatorio
+   ============================================================ */
+(function(){
+  "use strict";
+  function fm(n){ return "$"+Math.round(+n||0).toLocaleString("es-CO"); }
+  var MESN=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function hoyISO(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function fLar(iso){ var d=new Date(iso+"T12:00"); return d.getDate()+" de "+MESN[d.getMonth()]+" de "+d.getFullYear(); }
+  function usuraEA(){ var v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0; }
+  function eaTxt(){ var v=usuraEA(); return String(v).replace(".",","); }
+  function nombreCorto(n){
+    n=String(n||"").split("/")[0].trim();
+    var p=n.split(/\s+/);
+    return p.slice(0,2).join(" ");
+  }
+  function estado(b){
+    var hoy=hoyISO(), paid=abonado(b), cum=0, venc=[], prox=[], intT=0, ea=usuraEA();
+    (b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;})
+      .forEach(function(c){
+        var amt=+c.amount||0; cum+=amt;
+        var unc=Math.max(0,Math.min(amt,cum-paid));
+        if(unc<=1) return;
+        if(c.date<=hoy){
+          var dias=Math.round((new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5);
+          if(ea>0) intT+=unc*(Math.pow(1+ea/100,dias/365)-1);
+          venc.push({date:c.date,label:c.label||"Cuota",monto:unc,dias:dias});
+        } else if(prox.length<3){
+          prox.push({date:c.date,label:c.label||"Cuota",monto:unc});
+        }
+      });
+    return {venc:venc,prox:prox,interes:intT,
+            totalVenc:venc.reduce(function(a,c){return a+c.monto;},0),
+            abonado:paid};
+  }
+
+  function fillMailSelect(){
+    var sel=document.getElementById("mail_buyer"); if(!sel) return;
+    var prev=sel.value;
+    var bs=(DB.buyers||[]).filter(function(b){return b.code!=="PD"&&+b.total>0;})
+      .map(function(b){ var e=estado(b); return {b:b,e:e}; })
+      .filter(function(x){ return x.e.venc.length||x.e.prox.length; })
+      .sort(function(a,c){ return (c.e.totalVenc-a.e.totalVenc) || (a.b.code||"").localeCompare(c.b.code||""); });
+    sel.innerHTML='<option value="">— Elige el comprador —</option>'+bs.map(function(x){
+      var tag=x.e.totalVenc>1?" · vencido "+fm(x.e.totalVenc):" · al día";
+      return '<option value="'+x.b.id+'">'+(x.b.code||"")+" · "+x.b.name+tag+'</option>';
+    }).join("");
+    if(prev) sel.value=prev;
+  }
+
+  function buildMail(){
+    var out=document.getElementById("mail_out"); if(!out) return;
+    var sel=document.getElementById("mail_buyer");
+    var b=(DB.buyers||[]).find(function(x){return x.id===(sel&&sel.value);});
+    if(!b){ out.innerHTML='<div class="sys-note">Elige un comprador para redactar el correo.</div>'; return; }
+    var e=estado(b), ea=usuraEA();
+    var modo=document.getElementById("mail_tone").value;
+    if(modo==="auto") modo = e.totalVenc>1 ? "cobro" : "prev";
+    var email=(b.email||"").trim();
+    var nom=nombreCorto(b.name);
+    var lote=b.lote||"—";
+    var L=[];
+    var asunto;
+
+    if(modo==="cobro"){
+      asunto="Sierraluna · Estado de su cuenta y cuotas pendientes — Lote "+lote;
+      L.push("Estimado(a) "+nom+",");
+      L.push("");
+      L.push("Reciba un cordial saludo del equipo de Sierraluna. Le escribimos para compartirle el estado actualizado de su cuenta al "+fLar(hoyISO())+" y agradecerle la confianza depositada en el proyecto.");
+      L.push("");
+      L.push("A la fecha registramos abonos por "+fm(e.abonado)+", que valoramos sinceramente. Sin embargo, encontramos las siguientes cuotas pendientes de pago:");
+      L.push("");
+      e.venc.forEach(function(c){
+        L.push("   • "+c.label+" — venció el "+fLar(c.date)+" — "+fm(c.monto)+(c.dias>0?("  ("+c.dias+" día"+(c.dias===1?"":"s")+")"):""));
+      });
+      L.push("");
+      L.push("   Total pendiente: "+fm(e.totalVenc));
+      L.push("");
+      if(ea>0&&e.interes>1){
+        L.push("Le recordamos con aprecio que, conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente ("+eaTxt()+"% efectivo anual), que a la fecha ascienden aproximadamente a "+fm(e.interes)+" y siguen aumentando día a día. Poniéndose al día ahora evita que este valor continúe creciendo.");
+      } else {
+        L.push("Le recordamos con aprecio que, conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente. Realizando el pago a la brevedad evita que se generen estos costos adicionales.");
+      }
+      L.push("");
+      L.push("Si atraviesa alguna circunstancia particular que le dificulte el pago, le agradecemos escribirnos: preferimos siempre conversar y buscar juntos una alternativa que funcione para ambas partes.");
+    } else {
+      asunto="Sierraluna · Recordatorio de su próxima cuota — Lote "+lote;
+      L.push("Estimado(a) "+nom+",");
+      L.push("");
+      L.push("Reciba un cordial saludo del equipo de Sierraluna. Le escribimos únicamente como recordatorio amable de su plan de pagos, y para agradecerle el cumplimiento que ha mantenido con el proyecto.");
+      L.push("");
+      L.push("Al "+fLar(hoyISO())+" su cuenta se encuentra al día, con abonos por "+fm(e.abonado)+". Sus próximos vencimientos son:");
+      L.push("");
+      e.prox.forEach(function(c){
+        L.push("   • "+c.label+" — vence el "+fLar(c.date)+" — "+fm(c.monto));
+      });
+      L.push("");
+      L.push("Realizando el pago dentro de la fecha prevista, evita la causación de intereses de mora, que conforme a la promesa de compraventa se liquidan a la tasa máxima legal vigente"+(ea>0?(" ("+eaTxt()+"% efectivo anual)"):"")+".");
+      L.push("");
+      L.push("Si ya efectuó el pago, por favor haga caso omiso de este mensaje y, si lo tiene a mano, envíenos el comprobante para aplicarlo de inmediato.");
+    }
+    L.push("");
+    L.push("Datos para su pago:");
+    L.push("   Cuenta de Ahorros Bancolombia N.º 523-000043-32");
+    L.push("   Titular: Sierraluna Group S.A.S. — NIT 901.814.712-8");
+    L.push("   Comprobante a: info@sierraluna.co");
+    L.push("");
+    L.push("Quedamos atentos a cualquier inquietud.");
+    L.push("");
+    L.push("Cordialmente,");
+    L.push("");
+    L.push("Equipo Sierraluna");
+    L.push("Gestión de Cartera · Sierraluna Group S.A.S.");
+    L.push("info@sierraluna.co");
+    var cuerpo=L.join("\n");
+
+    var aviso = email ? "" :
+      '<div class="mailwarn"><b>Este comprador no tiene correo registrado.</b> Puedes copiar el texto y enviarlo por el medio que uses, o agregar su correo en la ficha del comprador para dejarlo disponible la próxima vez.</div>';
+    out.innerHTML = aviso+
+      '<div class="mailcard">'+
+        '<div class="mailhd">'+
+          '<div><div class="lb">Para</div><div class="vl">'+(email||"— sin correo registrado —")+'</div></div>'+
+          '<div style="flex:1"><div class="lb">Asunto</div><div class="vl">'+asunto+'</div></div>'+
+        '</div>'+
+        '<div class="mailbody" id="mail_txt">'+cuerpo.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</div>'+
+        '<div class="mailacts">'+
+          (email?'<button class="mb gold" onclick="openMailClient()">✉ Abrir en el correo</button>':"")+
+          '<button class="mb" onclick="copyMail(\'todo\')">Copiar correo completo</button>'+
+          '<button class="mb" onclick="copyMail(\'cuerpo\')">Copiar solo el mensaje</button>'+
+          (email?'<button class="mb" onclick="copyMail(\'dir\')">Copiar dirección</button>':"")+
+        '</div>'+
+      '</div>';
+    window.__mail={to:email,subject:asunto,body:cuerpo,code:b.code||"",name:b.name||""};
+  }
+
+  function toast(msg){
+    var t=document.createElement("div");
+    t.textContent=msg;
+    t.style.cssText="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:#122742;color:#fff;padding:11px 20px;border-radius:10px;font-family:inherit;font-size:13px;font-weight:600;z-index:999;box-shadow:0 10px 30px rgba(0,0,0,.3)";
+    document.body.appendChild(t);
+    setTimeout(function(){ t.remove(); },2200);
+  }
+  function copyMail(qué){
+    var m=window.__mail; if(!m) return;
+    var txt = qué==="dir" ? m.to : (qué==="cuerpo" ? m.body : ("Para: "+(m.to||"—")+"\nAsunto: "+m.subject+"\n\n"+m.body));
+    try{
+      navigator.clipboard.writeText(txt);
+      toast(qué==="dir"?"Dirección copiada":"Correo copiado al portapapeles");
+      if(qué!=="dir") logMail(m);
+    }catch(_){
+      var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); toast("Correo copiado"); }catch(__){}
+      ta.remove();
+    }
+  }
+  function openMailClient(){
+    var m=window.__mail; if(!m||!m.to) return;
+    var url="mailto:"+encodeURIComponent(m.to)+"?subject="+encodeURIComponent(m.subject)+"&body="+encodeURIComponent(m.body);
+    if(url.length>1900){ copyMail("todo"); toast("Correo copiado (era muy largo para abrirlo automáticamente)"); return; }
+    window.location.href=url;
+    logMail(m);
+  }
+  function logMail(m){
+    try{
+      if(!Array.isArray(DB.reminders)) DB.reminders=[];
+      var u="—"; try{ u=sessionStorage.getItem("sl_user")||"—"; }catch(_){}
+      DB.reminders.push({ts:Date.now(),user:u,bid:null,code:m.code,name:m.name,via:"correo"});
+      if(DB.reminders.length>500) DB.reminders=DB.reminders.slice(-500);
+      if(window.slAudit) slAudit({action:"Correo de recordatorio preparado",detail:m.code+" "+m.name});
+      if(window.save) save();
+      if(window.renderRemLog) renderRemLog();
+    }catch(_){}
+  }
+
+  var _rc=window.renderCobranza;
+  if(typeof _rc==="function"){
+    window.renderCobranza=function(){ var r=_rc.apply(this,arguments); try{ fillMailSelect(); }catch(_){} return r; };
+  }
+  var _t=0,_iv=setInterval(function(){ _t++;
+    if(typeof DB!=="undefined"&&DB&&DB.buyers&&DB.buyers.length&&document.getElementById("mail_buyer")){
+      clearInterval(_iv); fillMailSelect();
+    } else if(_t>30) clearInterval(_iv);
+  },1200);
+  window.buildMail=buildMail; window.copyMail=copyMail; window.openMailClient=openMailClient; window.fillMailSelect=fillMailSelect;
 })();
 </script>
