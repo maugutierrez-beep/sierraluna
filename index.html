@@ -5729,16 +5729,25 @@ function logout(){
       var x=map[e]||map.pendiente;
       return '<span class="chip" style="color:'+x[1]+';background:'+x[2]+'">'+x[0]+'</span>';
     };
+    var hoyD=new Date(hoy+"T12:00");
     var cuotasRows=cs.map(function(c){
-      return '<tr><td>'+fLar(c.date)+'</td><td>'+ (c.label||"") +'</td><td class="r">'+m$(c.amount)+'</td><td class="r">'+m$(c.cubierto)+'</td><td class="r">'+(c.pendiente>1?m$(c.pendiente):"—")+'</td><td>'+chip(c.estado)+'</td></tr>';
+      var atras = (c.pendiente>1 && c.date<=hoy) ? Math.round((hoyD-new Date(c.date+"T12:00"))/864e5) : 0;
+      return '<tr><td>'+fLar(c.date)+'</td><td>'+ (c.label||"") +'</td><td class="r">'+m$(c.amount)+'</td><td class="r">'+m$(c.cubierto)+'</td><td class="r">'+(c.pendiente>1?m$(c.pendiente):"—")+'</td><td class="r">'+(atras>0?atras:"—")+'</td><td class="r">'+(c.interes>1?m$(c.interes):"—")+'</td><td>'+chip(c.estado)+'</td></tr>';
     }).join("");
+    var totalNormalizar=venc+intT;
     var pagosRows=pagos.map(function(p){
       return '<tr><td>'+fLar(p.date)+'</td><td>'+(p.recibo!=null&&p.recibo!==""?("Recibo N.º "+p.recibo):(p.note||"Abono"))+'</td><td>'+(p.chan||"—")+'</td><td class="r">'+m$(p.amount)+'</td></tr>';
     }).join("");
     var ea=usuraEA();
     var moraBlock = venc>1
-      ? '<div class="mora"><b>Cartera vencida: '+m$(venc)+'.</b>'+(ea>0?' Interés de mora estimado a la fecha: <b>'+m$(intT)+'</b> (tasa máxima legal vigente, '+ea+'% E.A., según lo pactado en la promesa). Valor sujeto a liquidación definitiva al momento del pago.':' Genera intereses de mora a la tasa máxima legal desde el vencimiento de cada cuota, según lo pactado en la promesa.')+'</div>'
-      : '';
+      ? '<h2>Liquidación de la cartera vencida</h2>'+
+        '<table><tbody>'+
+        '<tr><td>Capital vencido a la fecha</td><td class="r">'+m$(venc)+'</td></tr>'+
+        '<tr><td>Interés de mora causado'+(ea>0?' (tasa máxima legal vigente, '+String(ea).replace(".",",")+'% E.A.)':'')+'</td><td class="r">'+(intT>1?m$(intT):"—")+'</td></tr>'+
+        '<tr><td style="border-top:1.6px solid #1A3352;padding-top:6px"><b>TOTAL PARA NORMALIZAR AL '+fLar(hoy).toUpperCase()+'</b></td><td class="r" style="border-top:1.6px solid #1A3352;padding-top:6px"><b>'+m$(totalNormalizar)+'</b></td></tr>'+
+        '</tbody></table>'+
+        '<div class="mora">Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente, certificada mensualmente por la Superintendencia Financiera. El interés se calcula día a día sobre cada cuota vencida desde su fecha de vencimiento, por lo que este valor aumenta mientras persista la mora y la liquidación definitiva se realiza en la fecha efectiva del pago.</div>'
+      : (cs.length? '<div class="mora" style="background:#eaf6ee;border-color:#bfe3cc">Su cuenta se encuentra <b>al día</b> a la fecha de este corte. No se han causado intereses de mora.</div>' : '');
     return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Estado de cuenta - '+b.name+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
     '<style>'+
@@ -5783,9 +5792,11 @@ function logout(){
       '<div class="k"><div class="l">Valor del inmueble</div><div class="v">'+m$(b.total)+'</div></div>'+
       '<div class="k green"><div class="l">Total abonado</div><div class="v">'+m$(pagado)+'</div></div>'+
       '<div class="k"><div class="l">Saldo por pagar</div><div class="v">'+m$(sal)+'</div></div>'+
-      '<div class="k red"><div class="l">Vencido a la fecha</div><div class="v">'+m$(venc)+'</div></div>'+
+      '<div class="k red"><div class="l">Capital vencido</div><div class="v">'+m$(venc)+'</div></div>'+
+      '<div class="k red"><div class="l">Interés de mora'+(ea>0?" ("+String(ea).replace(".",",")+"% E.A.)":"")+'</div><div class="v">'+(intT>1?m$(intT):"—")+'</div></div>'+
+      '<div class="k red"><div class="l">Total para normalizar</div><div class="v">'+(totalNormalizar>1?m$(totalNormalizar):"—")+'</div></div>'+
     '</div>'+
-    (cs.length?'<h2>Plan de pagos</h2><table><thead><tr><th>Vence</th><th>Concepto</th><th class="r">Cuota</th><th class="r">Cubierto</th><th class="r">Pendiente</th><th>Estado</th></tr></thead><tbody>'+cuotasRows+'</tbody></table>':'<div class="note">Este comprador no tiene plan de pagos registrado; se muestran únicamente los abonos.</div>')+
+    (cs.length?'<h2>Plan de pagos</h2><table><thead><tr><th>Vence</th><th>Concepto</th><th class="r">Cuota</th><th class="r">Cubierto</th><th class="r">Pendiente</th><th class="r">Días mora</th><th class="r">Interés causado</th><th>Estado</th></tr></thead><tbody>'+cuotasRows+'</tbody></table>':'<div class="note">Este comprador no tiene plan de pagos registrado; se muestran únicamente los abonos.</div>')+
     (pagos.length?'<h2>Abonos registrados</h2><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Canal</th><th class="r">Valor</th></tr></thead><tbody>'+pagosRows+'</tbody></table>':"")+
     moraBlock+
     '<div class="note">Documento informativo generado el '+fLar(hoy)+'. Los pagos se imputan en el orden pactado en la promesa (mora, obligación vencida, cuota vigente, cuotas futuras). Para pagos: Cuenta de Ahorros Bancolombia N.º 523-000043-32, titular Sierraluna Group S.A.S. Cualquier diferencia, escríbenos a info@sierraluna.co.</div>'+
