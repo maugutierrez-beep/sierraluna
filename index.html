@@ -4130,12 +4130,9 @@ function generatePDF(buyerId,opts){
     });
     if(capV>1||intHis>1){
       let idx=5;
-      if(intHis>1) y=dataRow('Interés por cuotas pagadas con retraso',COP(intHis),y,idx++);
-      if(capV>1){
-        y=dataRow('Capital vencido a la fecha',COP(capV),y,idx++);
-        y=dataRow('Interés corriente sobre capital vencido',COP(intCorr),y,idx++);
-      }
-      y=dataRow('Total para normalizar hoy'+(EAr>0?' ('+String(EAr).replace('.',',')+'% E.A.)':''),COP(capV+intHis+intCorr),y,idx++,true);
+      if(capV>1) y=dataRow('Capital vencido a la fecha',COP(capV),y,idx++);
+      y=dataRow('Intereses de mora causados'+(EAr>0?' ('+String(EAr).replace('.',',')+'% E.A.)':''),COP(intHis+intCorr),y,idx++);
+      y=dataRow('Total para normalizar hoy',COP(capV+intHis+intCorr),y,idx++,true);
     }
   })();
   // Progress bar
@@ -4255,18 +4252,14 @@ function generatePDF(buyerId,opts){
       if(y>228){doc.addPage();y=20;}
       y=sectionTitle('LIQUIDACIÓN DE INTERESES DE MORA',y);
       let ri=0;
-      if(interesHist>1) y=dataRow('Interés causado por cuotas pagadas con retraso',COP(interesHist),y,ri++);
-      if(capitalVencido>1){
-        y=dataRow('Capital vencido pendiente a la fecha',COP(capitalVencido),y,ri++);
-        y=dataRow('Interés corriente sobre el capital vencido',COP(interesMora),y,ri++);
-      }
-      y=dataRow('Total intereses de mora causados'+(EA_PDF>0?' ('+String(EA_PDF).replace('.',',')+'% E.A.)':''),COP(interesHist+interesMora),y,ri++,true);
+      if(capitalVencido>1) y=dataRow('Capital vencido a la fecha',COP(capitalVencido),y,ri++);
+      y=dataRow('Intereses de mora causados'+(EA_PDF>0?' ('+String(EA_PDF).replace('.',',')+'% E.A.)':''),COP(interesHist+interesMora),y,ri++,true);
       doc.setFillColor(208,90,58); doc.rect(M,y,W-2*M,8.5,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(255,255,255);
       doc.text('TOTAL PARA NORMALIZAR HOY',M+3,y+5.7);
       doc.text(COP(capitalVencido+interesHist+interesMora),W-M-3,y+5.7,{align:'right'}); y+=12;
       doc.setFont('helvetica','italic'); doc.setFontSize(7.3); doc.setTextColor(...gray);
-      const nm='Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente. Se liquidan dos conceptos: (i) el interés ya causado por cuotas que fueron canceladas después de su fecha de vencimiento, calculado por los días efectivamente transcurridos entre el vencimiento y el pago; y (ii) el interés corriente sobre las cuotas aún pendientes, que sigue aumentando día a día. El cálculo aplica la tasa vigente a la fecha de este corte; la liquidación definitiva se realiza con la tasa certificada para cada periodo de mora.';
+      const nm='Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente. El interés se liquida día a día sobre cada cuota, contado desde su fecha de vencimiento hasta la fecha efectiva de pago; en las cuotas aún pendientes continúa aumentando hasta que se cancelen. El cálculo aplica la tasa vigente a la fecha de este corte; la liquidación definitiva se realiza con la tasa certificada para cada periodo de mora.';
       const nml=doc.splitTextToSize(nm,W-2*M-6);
       doc.text(nml,M+3,y+3); y+=nml.length*3.4+6;
     } else if(plan.length){
