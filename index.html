@@ -4113,19 +4113,29 @@ function generatePDF(buyerId,opts){
   (function(){
     const EAr=(()=>{const v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0;})();
     const tod=new Date().toISOString().slice(0,10);
-    let cc=0, capV=0, intM=0;
+    const dd=(a,z)=>Math.round((new Date(z+'T12:00')-new Date(a+'T12:00'))/864e5);
+    const ii=(cap,d)=>(EAr>0&&d>0&&cap>0.5)?cap*(Math.pow(1+EAr/100,d/365)-1):0;
+    const pool=(b.payments||[]).filter(p=>p.date&&+p.amount>0).slice().sort((x,z)=>x.date<z.date?-1:1).map(p=>({date:p.date,rem:+p.amount}));
+    let pi2=0, capV=0, intCorr=0, intHis=0;
     (b.plan||[]).slice().sort((x,z)=>x.date<z.date?-1:1).forEach(c=>{
-      const m=+c.amount||0; const ap=Math.max(0,Math.min(m,abn-cc)); cc+=m;
-      const pend=m-ap;
-      if(pend>0.5&&c.date&&c.date<=tod){
-        const d=Math.round((new Date(tod+'T12:00')-new Date(c.date+'T12:00'))/864e5);
-        capV+=pend; if(EAr>0) intM+=pend*(Math.pow(1+EAr/100,d/365)-1);
+      let need=+c.amount||0;
+      while(need>0.5&&pi2<pool.length){
+        const p=pool[pi2];
+        if(p.rem<=0.5){pi2++;continue;}
+        const take=Math.min(p.rem,need);
+        const d=dd(c.date,p.date); if(d>0) intHis+=ii(take,d);
+        p.rem-=take; need-=take;
       }
+      if(need>0.5&&c.date&&c.date<=tod){ capV+=need; intCorr+=ii(need,dd(c.date,tod)); }
     });
-    if(capV>1){
-      y=dataRow('Capital vencido a la fecha',COP(capV),y,5);
-      y=dataRow('Interés de mora causado'+(EAr>0?' ('+String(EAr).replace('.',',')+'% E.A.)':''),COP(intM),y,6);
-      y=dataRow('Total para normalizar hoy',COP(capV+intM),y,7,true);
+    if(capV>1||intHis>1){
+      let idx=5;
+      if(intHis>1) y=dataRow('Interés por cuotas pagadas con retraso',COP(intHis),y,idx++);
+      if(capV>1){
+        y=dataRow('Capital vencido a la fecha',COP(capV),y,idx++);
+        y=dataRow('Interés corriente sobre capital vencido',COP(intCorr),y,idx++);
+      }
+      y=dataRow('Total para normalizar hoy'+(EAr>0?' ('+String(EAr).replace('.',',')+'% E.A.)':''),COP(capV+intHis+intCorr),y,idx++,true);
     }
   })();
   // Progress bar
@@ -4166,25 +4176,48 @@ function generatePDF(buyerId,opts){
     y=sectionTitle('PLAN DE PAGOS',y);
     const todPDF=new Date().toISOString().slice(0,10);
     const paidAmt=abn;            // total abonado
-    let cum=0;                    // acumulado de cuotas recorridas
     let totalPendiente=0;         // suma de lo que realmente falta
-    let capitalVencido=0, interesMora=0;
+    let capitalVencido=0, interesMora=0, interesHist=0;
     const EA_PDF=(()=>{const v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0;})();
+    const dias=(a,z)=>Math.round((new Date(z+'T12:00')-new Date(a+'T12:00'))/864e5);
+    const intDe=(cap,d)=>(EA_PDF>0&&d>0&&cap>0.5)?cap*(Math.pow(1+EA_PDF/100,d/365)-1):0;
+    // Imputación FIFO abono por abono: permite saber CUÁNDO se cubrió cada cuota
+    const pool=(b.payments||[]).filter(p=>p.date&&+p.amount>0)
+      .slice().sort((x,z)=>x.date<z.date?-1:1).map(p=>({date:p.date,rem:+p.amount}));
+    let pIdx=0;
+    const alloc=plan.map(c=>{
+      let need=+c.amount||0; const chunks=[];
+      while(need>0.5&&pIdx<pool.length){
+        const pay=pool[pIdx];
+        if(pay.rem<=0.5){pIdx++;continue;}
+        const take=Math.min(pay.rem,need);
+        chunks.push({amt:take,date:pay.date});
+        pay.rem-=take; need-=take;
+      }
+      return {chunks:chunks,pend:need};
+    });
     plan.forEach((c,i)=>{
       if(y>262){doc.addPage();y=20;}
       const monto=+c.amount||0;
-      const cubiertoAntes=Math.min(paidAmt,cum);          // abonado aplicado a cuotas previas
-      const aplicadoAqui=Math.max(0,Math.min(monto,paidAmt-cum)); // abonado que cae en esta cuota
-      const pendienteCuota=monto-aplicadoAqui;            // lo que falta de esta cuota
-      cum+=monto;
+      const A=alloc[i];
+      const pendienteCuota=A.pend;
+      const aplicadoAqui=monto-pendienteCuota;
       totalPendiente+=pendienteCuota;
       const cubierta=pendienteCuota<=0.5;
       const parcial=!cubierta && aplicadoAqui>0.5;
       const vencida=!cubierta && c.date<=todPDF;
+      // (a) interés histórico: porciones cubiertas DESPUÉS del vencimiento
+      let intHistCuota=0, diasRetraso=0;
+      A.chunks.forEach(k=>{
+        const d=dias(c.date,k.date);
+        if(d>0){ intHistCuota+=intDe(k.amt,d); diasRetraso=Math.max(diasRetraso,d); }
+      });
+      interesHist+=intHistCuota;
+      // (b) interés corriente: lo que sigue sin cubrir y ya venció
       let diasMora=0, interesCuota=0;
       if(vencida){
-        diasMora=Math.round((new Date(todPDF+'T12:00')-new Date(c.date+'T12:00'))/864e5);
-        if(EA_PDF>0) interesCuota=pendienteCuota*(Math.pow(1+EA_PDF/100,diasMora/365)-1);
+        diasMora=dias(c.date,todPDF);
+        interesCuota=intDe(pendienteCuota,diasMora);
         capitalVencido+=pendienteCuota; interesMora+=interesCuota;
       }
       doc.setFillColor(...(i%2===0?[245,247,250]:[255,255,255])); doc.rect(M,y,W-2*M,6.5,'F');
@@ -4201,6 +4234,10 @@ function generatePDF(buyerId,opts){
         doc.setTextColor(208,90,58);
         doc.text(diasMora+' d · int. '+COP(interesCuota),W-M-42,y+4.6,{align:'right'});
         doc.setTextColor(...lgray);
+      } else if(cubierta&&intHistCuota>1){
+        doc.setTextColor(183,121,31);
+        doc.text('pagada '+diasRetraso+' d tarde · int. '+COP(intHistCuota),W-M-42,y+4.6,{align:'right'});
+        doc.setTextColor(...lgray);
       } else {
         doc.text('Pactado '+COP(monto),W-M-42,y+4.6,{align:'right'});
       }
@@ -4214,17 +4251,22 @@ function generatePDF(buyerId,opts){
     doc.text('TOTAL PENDIENTE POR PAGAR',M+3,y+5.7);
     doc.text(COP(Math.max(0,totalPendiente)),W-M-3,y+5.7,{align:'right'}); y+=12;
     // ── Liquidación de la cartera vencida (intereses de mora) ──
-    if(capitalVencido>1){
-      if(y>236){doc.addPage();y=20;}
-      y=sectionTitle('LIQUIDACIÓN DE LA CARTERA VENCIDA',y);
-      y=dataRow('Capital vencido a la fecha',COP(capitalVencido),y,0);
-      y=dataRow('Interés de mora causado'+(EA_PDF>0?' ('+String(EA_PDF).replace('.',',')+'% E.A.)':''),COP(interesMora),y,1);
+    if(capitalVencido>1||interesHist>1){
+      if(y>228){doc.addPage();y=20;}
+      y=sectionTitle('LIQUIDACIÓN DE INTERESES DE MORA',y);
+      let ri=0;
+      if(interesHist>1) y=dataRow('Interés causado por cuotas pagadas con retraso',COP(interesHist),y,ri++);
+      if(capitalVencido>1){
+        y=dataRow('Capital vencido pendiente a la fecha',COP(capitalVencido),y,ri++);
+        y=dataRow('Interés corriente sobre el capital vencido',COP(interesMora),y,ri++);
+      }
+      y=dataRow('Total intereses de mora causados'+(EA_PDF>0?' ('+String(EA_PDF).replace('.',',')+'% E.A.)':''),COP(interesHist+interesMora),y,ri++,true);
       doc.setFillColor(208,90,58); doc.rect(M,y,W-2*M,8.5,'F');
       doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(255,255,255);
       doc.text('TOTAL PARA NORMALIZAR HOY',M+3,y+5.7);
-      doc.text(COP(capitalVencido+interesMora),W-M-3,y+5.7,{align:'right'}); y+=12;
+      doc.text(COP(capitalVencido+interesHist+interesMora),W-M-3,y+5.7,{align:'right'}); y+=12;
       doc.setFont('helvetica','italic'); doc.setFontSize(7.3); doc.setTextColor(...gray);
-      const nm='Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente, certificada mensualmente por la Superintendencia Financiera. El interés se liquida día a día sobre cada cuota vencida desde su vencimiento, por lo que aumenta mientras persista la mora; la liquidación definitiva se realiza en la fecha efectiva del pago.';
+      const nm='Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente. Se liquidan dos conceptos: (i) el interés ya causado por cuotas que fueron canceladas después de su fecha de vencimiento, calculado por los días efectivamente transcurridos entre el vencimiento y el pago; y (ii) el interés corriente sobre las cuotas aún pendientes, que sigue aumentando día a día. El cálculo aplica la tasa vigente a la fecha de este corte; la liquidación definitiva se realiza con la tasa certificada para cada periodo de mora.';
       const nml=doc.splitTextToSize(nm,W-2*M-6);
       doc.text(nml,M+3,y+3); y+=nml.length*3.4+6;
     } else if(plan.length){
