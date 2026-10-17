@@ -5791,20 +5791,78 @@ function logout(){
     return monto*(Math.pow(1+ea/100,dias/365)-1);
   }
 
-  /* ---------- Cobertura de cuotas (FIFO, igual criterio del sistema) ---------- */
-  function cuotasEstado(b){
-    var hoy=hoyISO();
-    var plan=(b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;});
-    var paid=abonado(b), cum=0, out=[];
+  /* ====== CÁLCULO ÚNICO DE MORA (FIFO) — lo usan estado de cuenta, carta de cobro y panel ======
+     Imputa cada abono a las cuotas en orden de vencimiento y liquida dos componentes:
+       · histórico: porciones de cuota cubiertas DESPUÉS de su vencimiento
+       · corriente: lo que sigue sin cubrir y ya venció
+     Devuelve además el detalle fila a fila para mostrarlo en los documentos. */
+  window.slMora = function(b, hastaISO){
+    var hoy = hastaISO || hoyISO();
+    var ea  = usuraEA();
+    var dd  = function(a,z){ return Math.round((new Date(z+"T12:00")-new Date(a+"T12:00"))/864e5); };
+    var ii  = function(cap,n){ return (ea>0&&n>0&&cap>0.5) ? cap*(Math.pow(1+ea/100,n/365)-1) : 0; };
+    var fc  = function(v){ var q=String(v||"").split("-"); if(q.length<3) return v||"";
+      var mm=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+      return q[2]+"-"+(mm[+q[1]-1]||q[1])+"-"+q[0]; };
+    var plan=(b.plan||[]).filter(function(c){return c.date;}).slice()
+              .sort(function(x,y){return x.date<y.date?-1:1;});
+    var pool=(b.payments||[]).filter(function(p){return p.date&&+p.amount>0;}).slice()
+              .sort(function(x,y){return x.date<y.date?-1:1;})
+              .map(function(p){return {date:p.date,rem:+p.amount};});
+    var pIdx=0, rows=[], cuotas=[], hist=0, act=0, capVenc=0, pendTot=0;
     plan.forEach(function(c){
-      var amt=+c.amount||0; cum+=amt;
-      var unc=Math.max(0,Math.min(amt,cum-paid));
-      var est = unc<=1 ? "pagada" : (c.date<=hoy ? (unc<amt-1?"parcial-vencida":"vencida") : (unc<amt-1?"parcial":"pendiente"));
-      out.push({date:c.date,label:c.label||"",amount:amt,cubierto:amt-unc,pendiente:unc,estado:est,
-                interes: (c.date<=hoy&&unc>0)? interesMora(unc,c.date) : 0});
+      var monto=+c.amount||0, need=monto, chunks=[];
+      while(need>0.5 && pIdx<pool.length){
+        var pay=pool[pIdx];
+        if(pay.rem<=0.5){ pIdx++; continue; }
+        var take=Math.min(pay.rem,need);
+        chunks.push({amt:take,date:pay.date});
+        pay.rem-=take; need-=take;
+      }
+      var intH=0, retr=0;
+      chunks.forEach(function(k){
+        var n=dd(c.date,k.date);
+        if(n>0){ var ik=ii(k.amt,n); intH+=ik; if(n>retr) retr=n;
+          if(ik>0.5) rows.push({ven:c.date,con:"Pagada el "+fc(k.date),tipo:"hist",cap:k.amt,dias:n,int:ik}); }
+      });
+      hist+=intH;
+      var intC=0, dm=0, vencida=(need>0.5 && c.date<=hoy);
+      if(vencida){
+        dm=dd(c.date,hoy); intC=ii(need,dm); act+=intC; capVenc+=need;
+        if(intC>0.5) rows.push({ven:c.date,con:"Sin pagar a la fecha",tipo:"act",cap:need,dias:dm,int:intC});
+      }
+      pendTot+=need;
+      cuotas.push({date:c.date,label:c.label||"",amount:monto,pendiente:need,cubierto:monto-need,
+        estado: need<=1 ? "pagada" : (c.date<=hoy ? (need<monto-1?"parcial-vencida":"vencida")
+                                                  : (need<monto-1?"parcial":"pendiente")),
+        intHist:intH, diasRetraso:retr, intCorr:intC, diasMora:dm, interes:intH+intC});
     });
-    return out;
-  }
+    return {ea:ea, hoy:hoy, rows:rows, cuotas:cuotas, hist:hist, act:act, interes:hist+act,
+            capitalVencido:capVenc, pendiente:pendTot, total:capVenc+hist+act, fc:fc};
+  };
+
+  /* Tabla HTML del detalle — compartida por la carta de cobro y el estado de cuenta en HTML */
+  window.slMoraTablaHTML = function(M, money){
+    if(!M.rows.length) return "";
+    var h='<h3 style="font-size:12px;margin:16px 0 6px;color:#1A3352;text-transform:uppercase;letter-spacing:.4px">Detalle del cálculo de intereses</h3>'+
+      '<table><thead><tr><th>Cuota vencida</th><th>Cómo se cubrió</th>'+
+      '<th class="r">Capital</th><th class="r">Días</th><th class="r">Interés</th></tr></thead><tbody>';
+    M.rows.forEach(function(r){
+      h+='<tr><td>'+M.fc(r.ven)+'</td>'+
+         '<td style="color:'+(r.tipo==="act"?"#c0392b":"#b7791f")+'">'+r.con+'</td>'+
+         '<td class="r">'+money(r.cap)+'</td><td class="r">'+r.dias+'</td>'+
+         '<td class="r"><b>'+money(r.int)+'</b></td></tr>';
+    });
+    h+='</tbody><tfoot><tr class="tot"><td colspan="4"><b>Total intereses causados</b></td>'+
+       '<td class="r"><b>'+money(M.interes)+'</b></td></tr></tfoot></table>'+
+       '<p style="font-size:10px;color:#5b6573;font-style:italic;margin:6px 0 0;text-align:left">'+
+       'Interés = capital × ((1 + '+String(M.ea).replace(".",",")+'%)^(días/365) − 1), a la tasa máxima legal certificada por la Superintendencia Financiera. '+
+       'Los abonos se imputan a las cuotas en orden cronológico de vencimiento; una cuota cubierta después de su fecha causa interés por los días de retraso.</p>';
+    return h;
+  };
+
+  /* ---------- Cobertura de cuotas (FIFO, igual criterio del sistema) ---------- */
+  function cuotasEstado(b){ return window.slMora(b).cuotas; }
 
   /* ---------- Mora (reemplaza el módulo anterior: ahora sobre usura E.A.) ---------- */
   function renderMora(){
@@ -5849,10 +5907,9 @@ function logout(){
       buyers.map(function(b){ return '<option value="'+b.id+'">'+(b.code||"")+" · "+b.name+'</option>'; }).join("");
   }
   function buildStatementHTML(b){
-    var hoy=hoyISO(), cs=cuotasEstado(b);
+    var hoy=hoyISO(), MO=window.slMora(b), cs=MO.cuotas;
     var pagado=abonado(b), sal=saldo(b);
-    var venc=0, intT=0;
-    cs.forEach(function(c){ if(c.estado==="vencida"||c.estado==="parcial-vencida"){ venc+=c.pendiente; intT+=c.interes; } });
+    var venc=MO.capitalVencido, intT=MO.interes;   // intT incluye la mora historica
     var pagos=(b.payments||[]).slice().sort(function(x,y){return (x.date||"")<(y.date||"")?-1:1;});
     var chip=function(e){
       var map={pagada:["PAGADA","#1d6b3f","#eaf6ee"],pendiente:["PENDIENTE","#5b6573","#f1f3f7"],
@@ -5871,14 +5928,14 @@ function logout(){
       return '<tr><td>'+fLar(p.date)+'</td><td>'+(p.recibo!=null&&p.recibo!==""?("Recibo N.º "+p.recibo):(p.note||"Abono"))+'</td><td>'+(p.chan||"—")+'</td><td class="r">'+m$(p.amount)+'</td></tr>';
     }).join("");
     var ea=usuraEA();
-    var moraBlock = venc>1
-      ? '<h2>Liquidación de la cartera vencida</h2>'+
+    var moraBlock = (venc>1||intT>1)
+      ? '<h2>Liquidación de intereses de mora</h2>'+
         '<table><tbody>'+
-        '<tr><td>Capital vencido a la fecha</td><td class="r">'+m$(venc)+'</td></tr>'+
+        (venc>1?'<tr><td>Capital vencido a la fecha</td><td class="r">'+m$(venc)+'</td></tr>':'')+
         '<tr><td>Interés de mora causado'+(ea>0?' (tasa máxima legal vigente, '+String(ea).replace(".",",")+'% E.A.)':'')+'</td><td class="r">'+(intT>1?m$(intT):"—")+'</td></tr>'+
         '<tr><td style="border-top:1.6px solid #1A3352;padding-top:6px"><b>TOTAL PARA NORMALIZAR AL '+fLar(hoy).toUpperCase()+'</b></td><td class="r" style="border-top:1.6px solid #1A3352;padding-top:6px"><b>'+m$(totalNormalizar)+'</b></td></tr>'+
         '</tbody></table>'+
-        '<div class="mora">Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente, certificada mensualmente por la Superintendencia Financiera. El interés se calcula día a día sobre cada cuota vencida desde su fecha de vencimiento, por lo que este valor aumenta mientras persista la mora y la liquidación definitiva se realiza en la fecha efectiva del pago.</div>'
+        '<div class="mora">Conforme a lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la tasa máxima legal vigente, certificada mensualmente por la Superintendencia Financiera. El interés se calcula día a día sobre cada cuota vencida desde su fecha de vencimiento, por lo que este valor aumenta mientras persista la mora y la liquidación definitiva se realiza en la fecha efectiva del pago.</div>'+window.slMoraTablaHTML(MO,m$)
       : (cs.length? '<div class="mora" style="background:#eaf6ee;border-color:#bfe3cc">Su cuenta se encuentra <b>al día</b> a la fecha de este corte. No se han causado intereses de mora.</div>' : '');
     return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Estado de cuenta - '+b.name+'</title>'+
     '<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
@@ -5997,6 +6054,7 @@ function logout(){
   window.renderMora=renderMora;
   window.saveUsura=saveUsura;
   window.printStatement=printStatement;
+  window.slStatementHTML=buildStatementHTML;   // expuesto para verificacion
   window.fillStatementSelect=fillStatementSelect;
   window.renderRemLog=renderRemLog;
 })();
@@ -6906,19 +6964,15 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   function usuraEA(){ var v=+((DB.config||{}).usuraEA); return (v>0&&v<200)?v:0; }
 
   function morosidad(b){
-    var hoy=hoyISO(), paid=abonado(b), cum=0, rows=[], venc=0, intT=0, ea=usuraEA();
-    (b.plan||[]).filter(function(c){return c.date;}).slice().sort(function(x,y){return x.date<y.date?-1:1;})
-      .forEach(function(c){
-        var amt=+c.amount||0; cum+=amt;
-        var unc=Math.max(0,Math.min(amt,cum-paid));
-        if(unc>1&&c.date<=hoy){
-          var dias=Math.round((new Date(hoy+"T12:00")-new Date(c.date+"T12:00"))/864e5);
-          var it=ea>0? unc*(Math.pow(1+ea/100,dias/365)-1) : 0;
-          rows.push({date:c.date,label:c.label||"Cuota",monto:unc,dias:dias,interes:it,parcial:unc<amt-1});
-          venc+=unc; intT+=it;
-        }
-      });
-    return {rows:rows,venc:venc,interes:intT,total:venc+intT};
+    var M=window.slMora(b), rows=[];
+    M.cuotas.forEach(function(c){
+      if(c.pendiente>1 && c.date<=M.hoy)
+        rows.push({date:c.date,label:c.label||"Cuota",monto:c.pendiente,dias:c.diasMora,
+                   interes:c.intCorr,parcial:c.pendiente<c.amount-1});
+    });
+    // interes y total incluyen tambien la mora historica (cuotas pagadas con retraso)
+    return {rows:rows, venc:M.capitalVencido, interes:M.interes, total:M.capitalVencido+M.interes,
+            hist:M.hist, act:M.act, M:M};
   }
 
   var CSS='.slc{width:794px;background:#fff;padding:52px 58px 40px;font-family:"Montserrat",system-ui,sans-serif;font-size:12.6px;line-height:1.62;color:#20293a;text-align:justify;box-sizing:border-box}'+
@@ -6954,9 +7008,11 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
     '<p>Reciba un cordial saludo de todo el equipo de Sierraluna. Le escribimos para compartirle el estado actualizado de su cuenta y, ante todo, para agradecerle nuevamente la confianza que ha depositado en este proyecto, que sigue avanzando para usted y su familia.</p>'+
     '<p>A la fecha, sus abonos suman <b>'+m$(ab)+'</b>, equivalentes al <b>'+pct.toFixed(1)+'%</b> del valor de su inmueble. Valoramos sinceramente ese esfuerzo. Al hacer el corte del día de hoy, sin embargo, encontramos las siguientes cuotas pendientes de pago:</p>'+
     '<table><thead><tr><th>Vencimiento</th><th>Concepto</th><th class="r">Valor pendiente</th><th class="r">Días de mora</th><th class="r">Interés causado</th></tr></thead><tbody>'+trs+
+    (mo.hist>1 ? '<tr><td colspan="2"><i>Intereses por cuotas ya pagadas con retraso</i></td><td class="r">—</td><td></td><td class="r">'+m$(mo.hist)+'</td></tr>' : '')+
     '<tr class="tot"><td colspan="2"><b>Totales</b></td><td class="r"><b>'+m$(mo.venc)+'</b></td><td></td><td class="r"><b>'+(mo.interes>1?m$(mo.interes):"—")+'</b></td></tr></tbody></table>'+
     (ea>0?'<p>De acuerdo con lo pactado en la promesa de compraventa, las sumas en mora causan intereses a la <b>tasa máxima legal vigente</b> ('+ea+'% efectivo anual, certificada mensualmente por la Superintendencia Financiera). El interés causado se calcula día a día, de modo que la liquidación definitiva se hará en la fecha efectiva de su pago.</p>':'')+
     '<div class="callout">Valor para normalizar su cuenta al corte de hoy: <b>'+m$(mo.total)+'</b><span>('+m$(mo.venc)+' de capital vencido'+(mo.interes>1?' + '+m$(mo.interes)+' de intereses de mora':'')+')</span></div>'+
+    (mo.M ? window.slMoraTablaHTML(mo.M, m$) : '')+
     '<p>Lo invitamos a ponerse al día dentro de los próximos <b>diez (10) días calendario</b>, es decir, a más tardar el <b>'+fLar(lim)+'</b>. Y si está atravesando alguna circunstancia particular que se lo dificulte, por favor escríbanos: preferimos siempre conversar y construir juntos una alternativa de pago, antes que permitir que se afecte la buena relación que hemos venido cultivando.</p>'+
     '<p class="datos"><b>Datos para su pago:</b> Cuenta de Ahorros Bancolombia N.º 523-000043-32 · Titular: Sierraluna Group S.A.S. (NIT 901.814.712-8). Una vez realizado, envíe el comprobante a <b>info@sierraluna.co</b> para aplicarlo de inmediato a su cuenta.</p>'+
     '<p>Gracias por su atención. Esperamos seguir contando con usted en esta comunidad que crece cada día.</p>'+
@@ -7083,6 +7139,8 @@ td.f360-link:hover{text-decoration:underline;color:#4a7eb5}
   }
 
   window.printCarta=printCarta;
+  window.slCartaMora=morosidad;          // expuesto para verificacion
+  window.slCartaHTML=cartaInner;
   window.printCartasMora=printCartasMora;
 })();
 </script>
